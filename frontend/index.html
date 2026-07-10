@@ -347,7 +347,7 @@ body{font-family:-apple-system,"Segoe UI",system-ui,"Noto Sans Devanagari",sans-
     </div>
     <div class="status-pill">
       <div class="status-dot warn" id="ibm-dot"></div>
-      <div class="status-text" id="ibm-status">IBM Granite AI…</div>
+      <div class="status-text" id="ibm-status">Connecting…</div>
     </div>
   </div>
 </div>
@@ -429,7 +429,7 @@ body{font-family:-apple-system,"Segoe UI",system-ui,"Noto Sans Devanagari",sans-
         <div class="chat-avatar">🌿</div>
         <div>
           <div class="chat-ai-name">Kisan AI — IBM Granite · Smart Farming Advisor</div>
-          <div class="chat-ai-status"><span class="online-dot"></span> Online · RAG-powered · Indian Farm Expert</div>
+          <div class="chat-ai-status"><span class="online-dot" id="chat-online-dot"></span> <span id="chat-online-status">Connecting…</span></div>
         </div>
         <button onclick="clearChat()" style="margin-left:auto;padding:7px 14px;border:1.5px solid var(--border);border-radius:10px;background:none;cursor:pointer;font-size:.8rem;color:var(--muted);font-weight:600">🗑 Clear</button>
       </div>
@@ -842,7 +842,7 @@ body{font-family:-apple-system,"Segoe UI",system-ui,"Noto Sans Devanagari",sans-
 </div><!-- end #main -->
 
 <script>
-const API = 'http://localhost:8000/api';
+const API = '/api';   // same-origin: works on localhost AND on Render/any host
 let chatMessages = [];
 let currentSeason = 'kharif';
 
@@ -904,14 +904,28 @@ window.onload = () => {
 function checkStatus() {
   fetch(API+'/status').then(r=>r.json()).then(d=>{
     setStatus('ibm-dot','ibm-status', d.ibm_key);
+    setChatStatus(true);
   }).catch(()=>{
-    setStatus('ibm-dot','ibm-status','⚠️ Backend offline');
+    setStatus('ibm-dot','ibm-status','AI offline — try later');
+    setChatStatus(false);
   });
 }
 function setStatus(dotId, textId, msg) {
   const dot = document.getElementById(dotId);
   document.getElementById(textId).textContent = msg;
   dot.className = 'status-dot ' + (msg.startsWith('✅') ? 'ok' : 'warn');
+}
+function setChatStatus(online) {
+  const dot = document.getElementById('chat-online-dot');
+  const txt = document.getElementById('chat-online-status');
+  if (!dot || !txt) return;
+  if (online) {
+    dot.style.background = '#16a34a';
+    txt.textContent = 'Online · RAG-powered · Indian Farm Expert';
+  } else {
+    dot.style.background = '#fbbf24';
+    txt.textContent = 'AI temporarily offline — responses may be delayed';
+  }
 }
 
 // ── Navigation ────────────────────────────────────────────────
@@ -967,7 +981,7 @@ async function sendMessage(text) {
     addBubble('ai', data.reply || 'Sorry, I could not get a response.', true);
   } catch(e) {
     typingEl.remove();
-    addBubble('ai', '⚠️ **Could not reach backend.**\n\nMake sure you ran:\n```\npip install fastapi uvicorn python-dotenv httpx\npython main.py\n```');
+    addBubble('ai', '🙏 Our AI advisor is temporarily offline for maintenance. Please try again in a few minutes.\n\nFor urgent farming help, call the **Kisan Call Centre: 1800-180-1551** (Free, 24×7).');
   } finally {
     setBtnLoading('send-btn', false);
   }
@@ -1166,10 +1180,10 @@ async function callAI(btnId, resultId, message) {
     });
     const data = await res.json();
     result.style.display = 'block';
-    result.innerHTML = '<h4>🤖 Kisan AI Recommendation</h4>' + formatText(data.reply || 'No response from AI. Check backend.');
+    result.innerHTML = '<h4>🤖 Kisan AI Recommendation</h4>' + formatText(data.reply || 'No response received. Please try again.');
   } catch(e) {
     result.style.display = 'block';
-    result.innerHTML = '<h4>⚠️ Backend not running</h4>Run: <code>python main.py</code> in the backend folder.';
+    result.innerHTML = '<div style="padding:1rem;background:#fff8e1;border-radius:10px;border-left:4px solid #f59e0b;font-size:.88rem;color:#78350f;line-height:1.6"><strong>🙏 AI advisor is temporarily offline.</strong><br>Please try again in a few minutes.<br><br>For urgent help: <strong>Kisan Call Centre 1800-180-1551</strong> (Free, 24×7)</div>';
   } finally {
     btn.disabled = false; btn.textContent = orig;
   }
