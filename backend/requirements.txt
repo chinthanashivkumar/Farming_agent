@@ -1,41 +1,7 @@
-# Core framework
-fastapi==0.139.0
-uvicorn==0.51.0
-pydantic==2.13.4
-pydantic-settings==2.14.2
-python-dotenv==1.2.2
-
-# HTTP & utilities
-httpx
-requests
-tenacity
-loguru
-
-# Translation (guaranteed Kannada/Hindi output)
-deep_translator
-
-# IBM WatsonX AI
-ibm-watsonx-ai
-
-# Database
-sqlalchemy
-asyncpg
-alembic
-
-# Auth
-python-jose[cryptography]
-passlib[bcrypt]
-
-# RAG / Vector store
-chromadb
-langchain
-langchain-community
-sentence-transformers
-
-# Speech
-gTTS
-SpeechRecognition
-pydub
-
-# Market data
-beautifulsoup4
+# Only what backend/main.py actually needs at runtime
+fastapi==0.115.0
+uvicorn==0.30.6
+python-dotenv==1.0.1
+httpx==0.27.2
+pydantic==2.9.2
+deep_translator==1.11.4

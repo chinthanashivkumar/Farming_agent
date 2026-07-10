@@ -718,6 +718,7 @@ if os.path.exists(FRONTEND):
 if __name__ == "__main__":
     import uvicorn, sys
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    port = int(os.getenv("PORT", 8000))
     print("Kisan AI - Smart Farming Advisor")
-    print("Open: http://localhost:8000")
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    print(f"Open: http://localhost:{port}")
+    uvicorn.run(app, host="0.0.0.0", port=port)
