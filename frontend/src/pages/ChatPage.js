@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { chatService, speechService } from '../services/api';
+import { chatService } from '../services/api';
 import { useFarmer } from '../context/FarmerContext';
 import toast from 'react-hot-toast';
 import './ChatPage.css';
 
-// Quick prompts in each supported language
+// ── Quick prompts per language ────────────────────────────────────────────────
 const QUICK_PROMPTS = {
   en: [
     '🌾 What crop should I grow this monsoon?',
@@ -14,7 +14,7 @@ const QUICK_PROMPTS = {
     '🧪 Which fertilizer for wheat at sowing?',
     '📈 Which crop is most profitable this season?',
     '🌱 My soil pH is 5.5 — what to grow?',
-    '🌤️ What are signs of nitrogen deficiency?',
+    '🌤️ Signs of nitrogen deficiency?',
   ],
   hi: [
     '🌾 इस मानसून में कौन सी फसल उगाऊं?',
@@ -38,17 +38,55 @@ const QUICK_PROMPTS = {
   ],
 };
 
-// Language codes for the Web Speech API
+// ── Chrome Web Speech API language codes ─────────────────────────────────────
+// NOTE: Chrome requires exact BCP-47 tags. 'kn-IN' is NOT recognised — use 'kn'.
+// 'hi-IN' and 'en-IN' work fine.
 const SPEECH_LANG_MAP = {
   en: 'en-IN',
   hi: 'hi-IN',
-  kn: 'kn-IN',
+  kn: 'kn',     // Kannada — Chrome only accepts 'kn' (no region suffix)
+};
+
+// ── Hint chips per language ───────────────────────────────────────────────────
+const HINT_CHIPS = {
+  en: ['🌾 Crop advice', '📊 Market price', '🐛 Pest help', '💧 Irrigation', '🧪 Fertilizer'],
+  hi: ['🌾 फसल सलाह', '📊 मंडी भाव', '🐛 कीट सहायता', '💧 सिंचाई', '🧪 खाद'],
+  kn: ['🌾 ಬೆಳೆ ಸಲಹೆ', '📊 ಮಂಡಿ ಬೆಲೆ', '🐛 ಕೀಟ ಸಹಾಯ', '💧 ನೀರಾವರಿ', '🧪 ಗೊಬ್ಬರ'],
 };
 
 function formatTime(iso) {
   if (!iso) return '';
-  const d = new Date(iso);
-  return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  return new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+}
+
+// ── Render AI message: support **bold**, bullet lines, newlines ───────────────
+function MessageContent({ text }) {
+  if (!text) return null;
+  return (
+    <div className="msg-content">
+      {text.split('\n').map((line, i) => {
+        const trimmed = line.trim();
+        if (!trimmed) return <br key={i} />;
+
+        // Bullet points: lines starting with -, *, •, numbers like "1."
+        const isBullet = /^(\*|-|•|\d+\.)\s/.test(trimmed);
+        // Bold: **text**
+        const parts = trimmed.split(/\*\*(.+?)\*\*/g).map((part, j) =>
+          j % 2 === 1 ? <strong key={j}>{part}</strong> : part
+        );
+
+        if (isBullet) {
+          return (
+            <div key={i} className="msg-bullet">
+              <span className="bullet-dot">•</span>
+              <span>{parts}</span>
+            </div>
+          );
+        }
+        return <p key={i} className="msg-line">{parts}</p>;
+      })}
+    </div>
+  );
 }
 
 function TypingIndicator() {
@@ -68,19 +106,21 @@ function TypingIndicator() {
 
 export default function ChatPage() {
   const { profile, language } = useFarmer();
-  const [sessions, setSessions]   = useState([]);
+  const [sessions, setSessions]       = useState([]);
   const [activeSession, setActiveSession] = useState(null);
-  const [messages, setMessages]   = useState([]);
-  const [input, setInput]         = useState('');
-  const [loading, setLoading]     = useState(false);
+  const [messages, setMessages]       = useState([]);
+  const [input, setInput]             = useState('');
+  const [loading, setLoading]         = useState(false);
   const [isRecording, setIsRecording] = useState(false);
+  const [micStatus, setMicStatus]     = useState('');   // live feedback text
   const messagesEndRef = useRef(null);
   const textareaRef    = useRef(null);
-  const recognitionRef = useRef(null);   // Web Speech API instance
+  const recognitionRef = useRef(null);
 
-  const prompts = QUICK_PROMPTS[language] || QUICK_PROMPTS.en;
+  const prompts   = QUICK_PROMPTS[language] || QUICK_PROMPTS.en;
+  const hintChips = HINT_CHIPS[language]    || HINT_CHIPS.en;
 
-  // ── Load sessions ────────────────────────────────
+  // ── Load sessions ─────────────────────────────────────────────────────────
   const loadSessions = useCallback(async () => {
     try {
       const res = await chatService.getSessions();
@@ -90,7 +130,7 @@ export default function ChatPage() {
 
   useEffect(() => { loadSessions(); }, [loadSessions]);
 
-  // ── Load messages for active session ─────────────
+  // ── Load messages for active session ─────────────────────────────────────
   useEffect(() => {
     if (!activeSession) { setMessages([]); return; }
     chatService.getMessages(activeSession.id)
@@ -98,12 +138,12 @@ export default function ChatPage() {
       .catch(() => setMessages([]));
   }, [activeSession]);
 
-  // ── Auto-scroll ───────────────────────────────────
+  // ── Auto-scroll ───────────────────────────────────────────────────────────
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, loading]);
 
-  // ── Auto-resize textarea ─────────────────────────
+  // ── Auto-resize textarea ──────────────────────────────────────────────────
   useEffect(() => {
     const ta = textareaRef.current;
     if (!ta) return;
@@ -111,17 +151,25 @@ export default function ChatPage() {
     ta.style.height = Math.min(ta.scrollHeight, 140) + 'px';
   }, [input]);
 
-  // ── Clean up speech recognition on unmount ───────
+  // ── Stop recognition when language changes ────────────────────────────────
+  useEffect(() => {
+    if (recognitionRef.current) {
+      recognitionRef.current.abort();
+      recognitionRef.current = null;
+      setIsRecording(false);
+      setMicStatus('');
+    }
+  }, [language]);
+
+  // ── Cleanup on unmount ────────────────────────────────────────────────────
   useEffect(() => {
     return () => {
-      if (recognitionRef.current) {
-        recognitionRef.current.abort();
-        recognitionRef.current = null;
-      }
+      recognitionRef.current?.abort();
+      recognitionRef.current = null;
     };
   }, []);
 
-  // ── Build farmer context from profile ─────────────
+  // ── Farmer context ────────────────────────────────────────────────────────
   const buildContext = () => ({
     location:        profile?.district ? `${profile.district}, ${profile.state}` : undefined,
     state:           profile?.state,
@@ -131,51 +179,53 @@ export default function ChatPage() {
     irrigation_type: profile?.irrigation_type,
   });
 
-  // ── Send message ──────────────────────────────────
+  // ── Send message ──────────────────────────────────────────────────────────
   const sendMessage = async (text) => {
     const msg = (text || input).trim();
     if (!msg || loading) return;
 
-    const optimisticUser = { id: Date.now(), role: 'user', content: msg, created_at: new Date().toISOString() };
+    const optimisticUser = {
+      id: Date.now(), role: 'user', content: msg,
+      created_at: new Date().toISOString(),
+    };
     setMessages(prev => [...prev, optimisticUser]);
     setInput('');
     setLoading(true);
 
     try {
-      const payload = {
+      const res = await chatService.send({
         message: msg,
         session_id: activeSession?.id || null,
         language,
         farmer_context: buildContext(),
-      };
-      const res = await chatService.send(payload);
+      });
 
       if (!activeSession) {
         setActiveSession({ id: res.data.session_id, title: msg.slice(0, 50) });
         loadSessions();
       }
 
-      const aiMsg = {
+      setMessages(prev => [...prev, {
         id: res.data.message_id,
         role: 'assistant',
         content: res.data.response,
         intent: res.data.intent,
         sources: res.data.sources || [],
         created_at: new Date().toISOString(),
-      };
-      setMessages(prev => [...prev, aiMsg]);
+      }]);
     } catch (err) {
       setMessages(prev => prev.filter(m => m.id !== optimisticUser.id));
       toast.error(err.response?.data?.detail || 'Failed to get AI response');
     } finally { setLoading(false); }
   };
 
-  // ── Voice recording — Web Speech API (browser-native, no backend) ─────────
+  // ── Mic — Web Speech API ──────────────────────────────────────────────────
   const toggleRecording = () => {
-    // Stop any ongoing recording
+    // Stop if already recording
     if (isRecording) {
       recognitionRef.current?.stop();
       setIsRecording(false);
+      setMicStatus('');
       return;
     }
 
@@ -183,76 +233,90 @@ export default function ChatPage() {
       window.SpeechRecognition || window.webkitSpeechRecognition;
 
     if (!SpeechRecognition) {
-      toast.error('Speech recognition is not supported in this browser. Try Chrome or Edge.');
+      toast.error(
+        'Speech recognition not supported. Please use Google Chrome or Microsoft Edge.',
+        { duration: 5000 }
+      );
       return;
     }
 
-    const recognition = new SpeechRecognition();
-    recognition.lang = SPEECH_LANG_MAP[language] || 'en-IN';
-    recognition.interimResults = false;
-    recognition.maxAlternatives = 1;
-    recognition.continuous = false;
+    // Abort any leftover instance
+    if (recognitionRef.current) {
+      recognitionRef.current.abort();
+      recognitionRef.current = null;
+    }
 
-    recognition.onstart = () => {
+    const rec = new SpeechRecognition();
+
+    // ⚠️  Critical: Chrome needs 'kn' not 'kn-IN' for Kannada
+    rec.lang              = SPEECH_LANG_MAP[language] || 'en-IN';
+    rec.interimResults    = true;   // show live transcript as you speak
+    rec.maxAlternatives   = 1;
+    rec.continuous        = true;   // keep listening until user taps stop
+
+    let finalTranscript = '';
+
+    rec.onstart = () => {
       setIsRecording(true);
-      toast('🎙️ Listening… speak now', { icon: '🔴', duration: 8000, id: 'mic-toast' });
+      setMicStatus('🎙️ Listening…');
     };
 
-    recognition.onresult = (event) => {
-      const transcript = event.results[0][0].transcript;
-      if (transcript) {
-        setInput(prev => (prev ? prev + ' ' + transcript : transcript));
-        toast.success('Voice captured!', { id: 'mic-toast' });
+    rec.onresult = (event) => {
+      let interim = '';
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        const t = event.results[i][0].transcript;
+        if (event.results[i].isFinal) {
+          finalTranscript += t + ' ';
+        } else {
+          interim = t;
+        }
       }
+      // Show live interim text in mic status bar
+      setMicStatus('🎙️ ' + (finalTranscript + interim).trim());
     };
 
-    recognition.onerror = (event) => {
+    rec.onerror = (event) => {
       setIsRecording(false);
+      setMicStatus('');
       recognitionRef.current = null;
-      const errorMap = {
-        'not-allowed': 'Microphone access denied. Please allow mic in browser settings.',
-        'no-speech': 'No speech detected. Please try again.',
-        'network': 'Network error during speech recognition.',
-        'aborted': null, // silently dismissed by user
+      const msgs = {
+        'not-allowed':      'Microphone access denied — allow mic in browser settings.',
+        'no-speech':        'No speech detected. Please speak closer to the mic.',
+        'network':          'Network error during speech recognition.',
+        'language-not-supported': `Language not supported by your browser for speech input.`,
+        'aborted':          null,
       };
-      const msg = errorMap[event.error];
-      if (msg) toast.error(msg, { id: 'mic-toast' });
+      const m = msgs[event.error] ?? `Mic error: ${event.error}`;
+      if (m) toast.error(m, { duration: 5000 });
     };
 
-    recognition.onend = () => {
+    rec.onend = () => {
       setIsRecording(false);
+      setMicStatus('');
+      // If we got final text, put it in the input box
+      if (finalTranscript.trim()) {
+        setInput(prev => prev ? prev + ' ' + finalTranscript.trim() : finalTranscript.trim());
+        toast.success('✅ Voice captured — press ➤ to send');
+      }
       recognitionRef.current = null;
     };
 
-    recognitionRef.current = recognition;
-    recognition.start();
+    recognitionRef.current = rec;
+    rec.start();
   };
 
-  // ── Text-to-speech for AI messages ───────────────
-  const speakMessage = async (text) => {
-    // Try Web Speech API first (instant, no backend cost)
-    if (window.speechSynthesis) {
-      window.speechSynthesis.cancel();
-      const utter = new SpeechSynthesisUtterance(text);
-      utter.lang = SPEECH_LANG_MAP[language] || 'en-IN';
-      window.speechSynthesis.speak(utter);
-      return;
-    }
-    // Fallback to backend gTTS
-    try {
-      const res = await speechService.tts(text, language);
-      if (res.data.audio_base64) {
-        const audio = new Audio(`data:audio/mp3;base64,${res.data.audio_base64}`);
-        audio.play();
-      }
-    } catch { toast.error('TTS unavailable'); }
+  // ── TTS — browser-native ──────────────────────────────────────────────────
+  const speakMessage = (text) => {
+    if (!window.speechSynthesis) { toast.error('TTS not supported in this browser'); return; }
+    window.speechSynthesis.cancel();
+    const utter = new SpeechSynthesisUtterance(text);
+    utter.lang = SPEECH_LANG_MAP[language] || 'en-IN';
+    window.speechSynthesis.speak(utter);
   };
 
   const handleKeyDown = (e) => {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
   };
-
-  const startNewChat = () => { setActiveSession(null); setMessages([]); };
 
   return (
     <div className="chat-page">
@@ -260,14 +324,14 @@ export default function ChatPage() {
       <aside className="chat-sessions">
         <div className="sessions-header">
           <span className="sessions-title">💬 Conversations</span>
-          <button className="new-chat-btn" onClick={startNewChat} title="New chat">＋</button>
+          <button className="new-chat-btn"
+            onClick={() => { setActiveSession(null); setMessages([]); }}
+            title="New chat">＋</button>
         </div>
 
         <div className="sessions-list">
           {sessions.length === 0 && (
-            <p style={{ padding: '1rem', fontSize: '0.82rem', color: 'var(--color-text-muted)', textAlign: 'center' }}>
-              No conversations yet.<br/>Start asking below!
-            </p>
+            <p className="sessions-empty">No conversations yet.<br/>Start asking below!</p>
           )}
           {sessions.map(s => (
             <div
@@ -282,7 +346,9 @@ export default function ChatPage() {
         </div>
 
         <div className="quick-prompts">
-          <p className="quick-prompts-title">Try asking</p>
+          <p className="quick-prompts-title">
+            {language === 'kn' ? 'ಕೇಳಲು ಪ್ರಯತ್ನಿಸಿ' : language === 'hi' ? 'पूछें' : 'Try asking'}
+          </p>
           {prompts.slice(0, 5).map(q => (
             <button key={q} className="quick-prompt-chip" onClick={() => sendMessage(q)}>
               {q}
@@ -293,24 +359,38 @@ export default function ChatPage() {
 
       {/* ── Main chat ── */}
       <div className="chat-main">
-        {/* Header */}
         <div className="chat-header">
           <div className="chat-header-avatar">🌿</div>
           <div className="chat-header-info">
-            <p className="chat-header-name">Smart Farming AI — IBM Granite</p>
+            <p className="chat-header-name">
+              {language === 'kn' ? '🌿 ಕೃಷಿ AI — IBM Granite'
+                : language === 'hi' ? '🌿 कृषि AI — IBM Granite'
+                : '🌿 Smart Farming AI — IBM Granite'}
+            </p>
             <p className="chat-header-status">
               <span className="status-dot" /> Online · RAG-powered
             </p>
           </div>
         </div>
 
-        {/* Messages */}
         <div className="chat-messages">
           {messages.length === 0 && !loading && (
             <div className="chat-welcome">
               <div className="chat-welcome-icon">🌾</div>
-              <h2>Hi {profile?.state ? `from ${profile.state}` : ''}, I'm your Farming AI!</h2>
-              <p>Ask me anything about crops, soil, pests, market prices, or irrigation.</p>
+              <h2>
+                {language === 'kn'
+                  ? `ನಮಸ್ಕಾರ${profile?.state ? ` — ${profile.state}` : ''}! ನಾನು ನಿಮ್ಮ ಕೃಷಿ AI ಸಹಾಯಕ 🌿`
+                  : language === 'hi'
+                  ? `नमस्ते${profile?.state ? ` — ${profile.state}` : ''}! मैं आपका कृषि AI सहायक हूं 🌿`
+                  : `Hi${profile?.state ? ` from ${profile.state}` : ''}! I'm your Farming AI 🌿`}
+              </h2>
+              <p>
+                {language === 'kn'
+                  ? 'ಬೆಳೆ, ಮಣ್ಣು, ಕೀಟ, ಮಂಡಿ ಬೆಲೆ ಅಥವಾ ನೀರಾವರಿ ಬಗ್ಗೆ ಕನ್ನಡದಲ್ಲಿ ಕೇಳಿ.'
+                  : language === 'hi'
+                  ? 'फसल, मिट्टी, कीट, मंडी भाव या सिंचाई के बारे में हिंदी में पूछें।'
+                  : 'Ask me anything about crops, soil, pests, market prices, or irrigation.'}
+              </p>
               <div className="chat-welcome-chips">
                 {prompts.map(q => (
                   <button key={q} className="welcome-chip" onClick={() => sendMessage(q)}>{q}</button>
@@ -325,13 +405,17 @@ export default function ChatPage() {
                 {msg.role === 'user' ? '👤' : '🌿'}
               </div>
               <div className="msg-bubble-wrap">
-                <div className="msg-bubble">{msg.content}</div>
+                <div className="msg-bubble">
+                  <MessageContent text={msg.content} />
+                </div>
                 <div className="msg-meta">
                   <span>{formatTime(msg.created_at)}</span>
-                  {msg.intent && <span className="msg-intent-badge">{msg.intent}</span>}
+                  {msg.intent && (
+                    <span className="msg-intent-badge">🏷️ {msg.intent}</span>
+                  )}
                   {msg.role === 'assistant' && (
                     <button
-                      style={{ background:'none', border:'none', cursor:'pointer', fontSize:'0.85rem', padding:0 }}
+                      className="tts-btn"
                       onClick={() => speakMessage(msg.content)}
                       title="Speak aloud"
                     >🔊</button>
@@ -354,11 +438,24 @@ export default function ChatPage() {
 
         {/* Input bar */}
         <div className="chat-input-bar">
+          {/* Live mic status strip */}
+          {micStatus && (
+            <div className="mic-status-bar">
+              <span className="mic-status-dot" />
+              <span className="mic-status-text">{micStatus}</span>
+              <button className="mic-stop-btn" onClick={toggleRecording}>■ Stop</button>
+            </div>
+          )}
+
           <div className="chat-input-row">
             <textarea
               ref={textareaRef}
               className="chat-textarea"
-              placeholder="Ask anything about farming… (Enter to send, Shift+Enter for new line)"
+              placeholder={
+                language === 'kn' ? 'ಕನ್ನಡದಲ್ಲಿ ಕೇಳಿ… (Enter ಕಳುಹಿಸಲು)'
+                : language === 'hi' ? 'हिंदी में पूछें… (Enter से भेजें)'
+                : 'Ask anything about farming… (Enter to send)'
+              }
               value={input}
               onChange={e => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
@@ -369,16 +466,25 @@ export default function ChatPage() {
               <button
                 className={`input-action-btn${isRecording ? ' recording' : ''}`}
                 onClick={toggleRecording}
-                title={isRecording ? 'Stop recording' : 'Voice input'}
+                title={isRecording ? 'Stop recording' : `Voice input (${language === 'kn' ? 'ಕನ್ನಡ' : language === 'hi' ? 'हिंदी' : 'English'})`}
               >🎤</button>
-              <button className="send-btn" onClick={() => sendMessage()} disabled={!input.trim() || loading}>
-                {loading ? <span className="spinner" style={{borderTopColor:'#fff'}} /> : '➤'}
+              <button
+                className="send-btn"
+                onClick={() => sendMessage()}
+                disabled={!input.trim() || loading}
+              >
+                {loading ? <span className="spinner" style={{ borderTopColor: '#fff' }} /> : '➤'}
               </button>
             </div>
           </div>
+
           <div className="chat-input-hints">
-            {['🌾 Crop advice', '📊 Market price', '🐛 Pest help', '💧 Irrigation', '🧪 Fertilizer'].map(h => (
-              <button key={h} className="hint-chip" onClick={() => setInput(h.slice(3))}>{h}</button>
+            {hintChips.map(h => (
+              <button
+                key={h}
+                className="hint-chip"
+                onClick={() => setInput(h.replace(/^.\s/, ''))}
+              >{h}</button>
             ))}
           </div>
         </div>

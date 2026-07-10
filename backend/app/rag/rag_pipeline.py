@@ -41,9 +41,12 @@ class RAGPipeline:
         where_filter = {"category": intent} if intent else None
         retrieved_docs = semantic_search(english_query, where=where_filter)
 
-        # Step 4: Build prompt (pass language so LLM is told to reply in it directly)
+        # Step 4: Build prompt
+        # Pass BOTH the original query (in native language) and the English
+        # translation so the LLM sees the user's actual language and responds in it.
         prompt = build_prompt(
             query=english_query,
+            original_query=user_query if detected_lang != "en" else None,
             retrieved_docs=retrieved_docs,
             intent=intent,
             farmer_context=farmer_context or {},

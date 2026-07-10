@@ -84,9 +84,22 @@ def format_farmer_context(ctx: Dict[str, Any]) -> str:
 
 
 LANGUAGE_INSTRUCTIONS = {
-    "en": "Respond ONLY in English.",
-    "hi": "Respond ONLY in Hindi (हिंदी में उत्तर दें). Use Devanagari script throughout.",
-    "kn": "Respond ONLY in Kannada (ಕನ್ನಡದಲ್ಲಿ ಉತ್ತರಿಸಿ). Use Kannada script throughout.",
+    "en": (
+        "English",
+        "You MUST respond entirely in English. Do not use any other language."
+    ),
+    "hi": (
+        "Hindi",
+        "आपको पूरा उत्तर केवल हिंदी में देना है। "
+        "Devanagari script का उपयोग करें। "
+        "You MUST respond entirely in Hindi (Devanagari script). Do NOT write in English."
+    ),
+    "kn": (
+        "Kannada",
+        "ನೀವು ಸಂಪೂರ್ಣ ಉತ್ತರವನ್ನು ಕನ್ನಡದಲ್ಲಿ ಮಾತ್ರ ನೀಡಬೇಕು. "
+        "ಕನ್ನಡ ಲಿಪಿಯನ್ನು ಉಪಯೋಗಿಸಿ. "
+        "You MUST respond entirely in Kannada (Kannada script). Do NOT write in English."
+    ),
 }
 
 
@@ -96,17 +109,28 @@ def build_prompt(
     intent: str = "general",
     farmer_context: Dict[str, Any] = None,
     language: str = "en",
+    original_query: str = None,
 ) -> str:
     """Construct full LLM prompt for IBM Granite optimized for Indian farming context."""
     task_instruction = INTENT_PROMPTS.get(intent or "general", INTENT_PROMPTS["general"])
     context_str = format_retrieved_docs(retrieved_docs)
     farmer_str = format_farmer_context(farmer_context or {})
-    lang_instruction = LANGUAGE_INSTRUCTIONS.get(language or "en", LANGUAGE_INSTRUCTIONS["en"])
+    lang_name, lang_instruction = LANGUAGE_INSTRUCTIONS.get(
+        language or "en", LANGUAGE_INSTRUCTIONS["en"]
+    )
+
+    # Show the farmer's original question in their own language if available
+    question_block = f"{query}"
+    if original_query and original_query != query:
+        question_block = f"{original_query}\n(English translation for context: {query})"
 
     prompt = f"""{SYSTEM_INSTRUCTION}
 
-LANGUAGE INSTRUCTION (CRITICAL — follow this above everything else):
-{lang_instruction}
+╔══════════════════════════════════════════════════════════════╗
+║  LANGUAGE RULE — HIGHEST PRIORITY — CANNOT BE OVERRIDDEN    ║
+║  {lang_instruction:<60}║
+║  The farmer speaks {lang_name}. Answer 100% in {lang_name}. No English. ║
+╚══════════════════════════════════════════════════════════════╝
 
 ═══════════════════════════════════════════════════════════════
 
@@ -121,11 +145,11 @@ RETRIEVED AGRICULTURAL KNOWLEDGE (use this as primary reference):
 
 ═══════════════════════════════════════════════════════════════
 
-FARMER'S QUESTION:
-{query}
+FARMER'S QUESTION (in {lang_name}):
+{question_block}
 
 ═══════════════════════════════════════════════════════════════
 
-YOUR ANSWER ({lang_instruction}):
+YOUR ANSWER — write every word in {lang_name} script only:
 """
     return prompt.strip()
