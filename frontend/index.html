@@ -993,16 +993,20 @@ function addBubble(role, text, withSpeak) {
   const msgs = document.getElementById('chat-messages');
   const row = document.createElement('div');
   row.className = `msg-row ${role}`;
-  const cleanText = text.replace(/"/g,'&quot;').replace(/\*/g,'');
-  const speakBtn = (role === 'ai' && withSpeak)
-    ? `<button class="speak-btn" onclick="speakText(this)" data-text="${cleanText}" title="Listen aloud">🔊</button>`
-    : '';
   row.innerHTML = `
     <div class="msg-av ${role}">${role==='ai'?'🌿':'👤'}</div>
     <div style="display:flex;flex-direction:column;gap:4px;min-width:0">
       <div class="bubble">${formatText(text)}</div>
-      ${speakBtn ? `<div>${speakBtn}</div>` : ''}
+      ${(role === 'ai' && withSpeak) ? '<div><button class="speak-btn" title="Listen aloud">🔊</button></div>' : ''}
     </div>`;
+  // Store raw text on the button via DOM property (avoids HTML attribute escaping issues)
+  if (role === 'ai' && withSpeak) {
+    const speakBtn = row.querySelector('.speak-btn');
+    if (speakBtn) {
+      speakBtn._rawText = text;   // store as property, not attribute
+      speakBtn.onclick = () => speakText(speakBtn);
+    }
+  }
   msgs.appendChild(row);
   msgs.scrollTop = msgs.scrollHeight;
   return row;
@@ -1230,193 +1234,184 @@ window.addEventListener('DOMContentLoaded', () => {
 });
 
 // ── Text-to-Speech ────────────────────────────────────────────
-let _ttsBtn = null;  // track which button is currently playing
+let _ttsBtn = null;
 
 function _cleanForSpeech(raw) {
-  return raw
-    // strip emoji characters (Unicode ranges)
-    .replace(/[\u{1F300}-\u{1FFFF}]/gu, '')
-    .replace(/[\u{2600}-\u{27BF}]/gu, '')
-    .replace(/[\u{FE00}-\u{FE0F}]/gu, '')
-    // strip markdown bold/italic markers
+  return (raw || '')
+    .replace(/[\u{1F300}-\u{1FFFF}|\u{2600}-\u{27BF}|\u{FE00}-\u{FE0F}|\u{1F000}-\u{1F02F}|\u{1F0A0}-\u{1F0FF}|\u{1F100}-\u{1F1FF}|\u{1F200}-\u{1F2FF}|\u{1F900}-\u{1F9FF}|\u{1FA00}-\u{1FA6F}|\u{1FA70}-\u{1FAFF}]/gu, '')
+    .replace(/[^\u0000-\u007E\u0080-\u00FF\u0900-\u097F\u0C00-\u0C7F\u0C80-\u0CFF\u0B80-\u0BFF\u0C00-\u0C7F\u0A00-\u0A7F\u0D00-\u0D7F]/g, '') // keep Latin + Indian scripts only
     .replace(/\*\*(.+?)\*\*/g, '$1')
     .replace(/\*(.+?)\*/g, '$1')
-    // strip bullet points / dashes at line start
-    .replace(/^[•\-]\s*/gm, '')
-    // strip code backticks
     .replace(/`([^`]+)`/g, '$1')
-    // collapse multiple spaces/newlines
-    .replace(/\n{3,}/g, '\n\n')
-    .replace(/  +/g, ' ')
+    .replace(/^[•·\-#]\s*/gm, '')
+    .replace(/\n{2,}/g, '. ')
+    .replace(/\n/g, '. ')
+    .replace(/\s{2,}/g, ' ')
+    .replace(/\.\s*\./g, '.')
     .trim();
 }
 
 function speakText(btn) {
   if (!window.speechSynthesis) return;
-
-  // ── If this button is already playing → stop ──
+  // Toggle off if same button
   if (_ttsBtn === btn) {
     window.speechSynthesis.cancel();
     btn.textContent = '🔊';
     _ttsBtn = null;
     return;
   }
-
-  // ── Stop whatever was playing before ──
+  // Stop previous
   window.speechSynthesis.cancel();
   if (_ttsBtn) { _ttsBtn.textContent = '🔊'; _ttsBtn = null; }
 
-  const raw  = btn.getAttribute('data-text') || '';
+  const raw  = btn._rawText || btn.getAttribute('data-text') || '';
   const text = _cleanForSpeech(raw);
   if (!text) return;
 
-  const utt  = new SpeechSynthesisUtterance(text);
-  // Always speak in plain English regardless of UI language —
-  // most browsers only have good quality English voices installed.
+  const utt = new SpeechSynthesisUtterance(text);
   utt.lang  = 'en-IN';
-  utt.rate  = 0.88;
+  utt.rate  = 0.85;
   utt.pitch = 1.0;
 
-  // Pick best available English voice
   function _doSpeak() {
     const voices = window.speechSynthesis.getVoices();
     const prefer = voices.find(v => v.lang === 'en-IN')
-                || voices.find(v => v.lang.startsWith('en-'))
-                || voices.find(v => v.default);
+                || voices.find(v => v.lang === 'en-GB')
+                || voices.find(v => v.lang.startsWith('en'))
+                || null;
     if (prefer) utt.voice = prefer;
     btn.textContent = '⏹';
     _ttsBtn = btn;
-    utt.onend = () => { btn.textContent = '🔊'; if (_ttsBtn === btn) _ttsBtn = null; };
+    utt.onend   = () => { btn.textContent = '🔊'; if (_ttsBtn === btn) _ttsBtn = null; };
     utt.onerror = () => { btn.textContent = '🔊'; if (_ttsBtn === btn) _ttsBtn = null; };
     window.speechSynthesis.speak(utt);
   }
-
-  // Voices may not be loaded yet on first call
-  if (window.speechSynthesis.getVoices().length > 0) {
-    _doSpeak();
-  } else {
-    window.speechSynthesis.onvoiceschanged = () => { _doSpeak(); };
-  }
+  if (window.speechSynthesis.getVoices().length) { _doSpeak(); }
+  else { window.speechSynthesis.onvoiceschanged = _doSpeak; }
 }
 
 // ── Voice Input (Speech-to-Text) ──────────────────────────────
-let _recog = null;
-let _recogActive = false;
-let _userStoppedMic = false;  // module-level flag: user tapped stop intentionally
+let _recog         = null;
+let _recogActive   = false;
+let _micStopped    = false;   // true when user taps stop — prevents auto-send
+let _accumulated   = '';      // all final transcript text so far
 
-/* Show a small toast instead of blocking alert() */
 function _voiceToast(msg, color) {
+  const old = document.getElementById('_vt');
+  if (old) old.remove();
   const t = document.createElement('div');
+  t.id = '_vt';
   t.textContent = msg;
-  t.style.cssText = `position:fixed;bottom:80px;left:50%;transform:translateX(-50%);
-    background:${color||'#1b5226'};color:#fff;padding:10px 20px;border-radius:20px;
+  t.style.cssText = `position:fixed;bottom:84px;left:50%;transform:translateX(-50%);
+    background:${color||'#1b5226'};color:#fff;padding:10px 22px;border-radius:20px;
     font-size:.85rem;font-weight:700;z-index:9999;box-shadow:0 4px 16px rgba(0,0,0,.3);
-    white-space:nowrap;max-width:90vw;text-align:center`;
+    max-width:92vw;text-align:center;pointer-events:none`;
   document.body.appendChild(t);
-  setTimeout(() => t.remove(), 3000);
+  setTimeout(() => { if (t.parentNode) t.remove(); }, 3200);
 }
 
-function _resetMicBtn() {
+function _resetMic() {
   const btn = document.getElementById('mic-btn');
-  if (!btn) return;
-  btn.classList.remove('recording');
-  btn.textContent = '🎤';
-  btn.title = 'Voice input — tap to speak';
+  if (btn) { btn.classList.remove('recording'); btn.textContent = '🎤'; btn.title = 'Voice input'; }
   _recogActive = false;
 }
 
 function toggleVoice() {
-  const btn = document.getElementById('mic-btn');
-
-  // ── Stop if already recording ──
+  // ── Stop if recording ──────────────────────────────────────
   if (_recogActive) {
-    _userStoppedMic = true;       // signal onend to NOT auto-send
-    if (_recog) { try { _recog.abort(); } catch(e){} }
-    _resetMicBtn();
-    const ta0 = document.getElementById('msg-input');
-    if (ta0) ta0.value = '';
+    _micStopped = true;
+    if (_recog) { try { _recog.abort(); } catch(_){} _recog = null; }
+    _resetMic();
+    const ta = document.getElementById('msg-input');
+    if (ta) ta.value = '';
+    const old = document.getElementById('_vt'); if (old) old.remove();
     return;
   }
 
-  // ── Browser support check ──
-  if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
-    _voiceToast('❌ Voice input not supported. Use Chrome or Edge.', '#dc2626');
-    return;
-  }
+  // ── Browser check ──────────────────────────────────────────
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) { _voiceToast('Voice not supported — use Chrome or Edge', '#dc2626'); return; }
 
-  // ── Destroy any previous instance cleanly ──
-  if (_recog) {
-    try { _recog.abort(); } catch(e) {}
-    _recog = null;
-  }
+  // ── Clean up any leftover instance ────────────────────────
+  if (_recog) { try { _recog.abort(); } catch(_){} _recog = null; }
 
-  const SpeechRecognitionAPI = window.SpeechRecognition || window.webkitSpeechRecognition;
-  _recog = new SpeechRecognitionAPI();
-  // Always recognise in English — farm terms (koleroga, paddy, urea, etc.)
-  // are detected far more accurately in English by all browsers.
-  _recog.lang            = 'en-IN';
-  _recog.continuous      = false;
-  _recog.interimResults  = true;   // show live preview while speaking
+  const ta   = document.getElementById('msg-input');
+  const btn  = document.getElementById('mic-btn');
+  _accumulated = '';
+  _micStopped  = false;
+
+  _recog = new SR();
+  _recog.lang           = 'en-IN';
+  _recog.continuous     = false;   // single utterance mode
+  _recog.interimResults = true;    // live preview
   _recog.maxAlternatives = 1;
 
-  const ta = document.getElementById('msg-input');
-  let finalTranscript = '';
-
+  // ── onstart ───────────────────────────────────────────────
   _recog.onstart = () => {
     _recogActive = true;
-    _userStoppedMic = false;   // reset on every new recording session
-    finalTranscript = '';
     btn.classList.add('recording');
     btn.textContent = '⏹';
-    btn.title = 'Listening… tap to stop';
-    _voiceToast('🎤 Listening… speak your question', '#1b5226');
+    btn.title = 'Listening — tap to stop';
+    ta.value = '';
+    ta.placeholder = 'Listening…';
+    _voiceToast('Listening… speak now', '#1b5226');
   };
 
+  // ── onresult — accumulate properly ────────────────────────
   _recog.onresult = (e) => {
     let interim = '';
-    finalTranscript = '';
-    for (let i = e.resultIndex; i < e.results.length; i++) {
+    // Accumulate ALL final results (index 0 to resultIndex)
+    for (let i = 0; i < e.results.length; i++) {
       if (e.results[i].isFinal) {
-        finalTranscript += e.results[i][0].transcript;
+        _accumulated = e.results[i][0].transcript;  // single-utterance: only one final
       } else {
-        interim += e.results[i][0].transcript;
+        interim = e.results[i][0].transcript;
       }
     }
-    // Show live preview in input box
-    ta.value = finalTranscript || interim;
+    // Show whatever we have — final takes priority
+    ta.value = _accumulated || interim;
   };
 
+  // ── onerror ────────────────────────────────────────────────
   _recog.onerror = (e) => {
-    if (e.error === 'aborted') return;          // user stopped — silent
-    if (e.error === 'no-speech') {
-      _voiceToast('No speech detected. Try again.', '#d97706');
-    } else if (e.error === 'not-allowed' || e.error === 'service-not-allowed') {
-      _voiceToast('Microphone blocked. Allow mic in browser settings.', '#dc2626');
-    } else if (e.error === 'network') {
-      _voiceToast('Network error. Check your internet connection.', '#dc2626');
-    } else {
-      _voiceToast('Voice error: ' + e.error, '#dc2626');
+    if (e.error === 'aborted' || e.error === 'no-speech') {
+      if (e.error === 'no-speech') _voiceToast('No speech heard — try again', '#d97706');
+      _resetMic();
+      ta.placeholder = 'Ask about arecanut, coconut, paddy, banana, turmeric… (Enter to send)';
+      return;
     }
-    _resetMicBtn();
+    const msgs = {
+      'not-allowed':       'Microphone blocked — allow mic in browser settings',
+      'service-not-allowed':'Microphone blocked — allow mic in browser settings',
+      'network':           'Network error — check internet connection',
+      'audio-capture':     'No microphone found — plug in a mic',
+    };
+    _voiceToast(msgs[e.error] || ('Voice error: ' + e.error), '#dc2626');
+    _resetMic();
+    ta.placeholder = 'Ask about arecanut, coconut, paddy, banana, turmeric… (Enter to send)';
   };
 
+  // ── onend — fires after recognition completes ──────────────
   _recog.onend = () => {
-    _resetMicBtn();
-    // Only auto-send if the user did NOT manually tap stop
-    if (_userStoppedMic) { return; }
-    const captured = finalTranscript.trim() || ta.value.trim();
-    if (captured) {
-      ta.value = captured;
+    _resetMic();
+    ta.placeholder = 'Ask about arecanut, coconut, paddy, banana, turmeric… (Enter to send)';
+    if (_micStopped) return;           // user tapped stop — do nothing
+    const text = _accumulated.trim() || ta.value.trim();
+    if (text) {
+      ta.value = text;
       ta.focus();
-      setTimeout(() => sendMessage(), 500);
+      setTimeout(() => sendMessage(), 600);  // brief pause so user sees transcript
+    } else {
+      _voiceToast('Nothing captured — tap mic and speak clearly', '#d97706');
     }
   };
 
+  // ── start ─────────────────────────────────────────────────
   try {
     _recog.start();
   } catch(e) {
-    _voiceToast('⚠️ Could not start mic: ' + e.message, '#dc2626');
-    _resetMicBtn();
+    _voiceToast('Could not start mic: ' + e.message, '#dc2626');
+    _resetMic();
   }
 }
 </script>
