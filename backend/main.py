@@ -571,38 +571,18 @@ def build_answer(message: str) -> str:
 
 
 # ---------------------------------------------------------------------------
-# Language extraction
+# Translation helper — guaranteed Kannada / Hindi output
 # ---------------------------------------------------------------------------
-def extract_lang(message: str):
-    """Return (clean_message, lang_code). Supported: en, hi, kn."""
-    lang_map = {"hindi": "hi", "kannada": "kn"}
-    lang = "en"
-    clean = message
-    match = re.search(r'\[Please reply in (\w+)', message, re.IGNORECASE)
-    if match:
-        word = match.group(1).lower()
-        for key, code in lang_map.items():
-            if key in word or word in key:
-                lang = code
-                break
-        clean = re.sub(r'\[Please reply in[^\]]+\]', '', message).strip()
-    return clean, lang
-
-
-def localize(answer: str, lang: str, question: str = "") -> str:
-    """Add native-language greeting and helpline footer. Body stays English."""
+def translate_to(text: str, lang: str) -> str:
+    """Translate English text to target lang using deep_translator."""
     if lang == "en":
-        return answer
-    # Greeting in native language, answer body in English (readable by all)
-    greet = {
-        "hi": "Namaste Kisan Bhai! Aapke sawaal ka jawaab:\n\n",
-        "kn": "Namaskara Raita Anna! Nimage uttara:\n\n",
-    }.get(lang, "")
-    footer = {
-        "hi": "\n\nKisan Call Centre: 1800-180-1551 (Nishulk / Free)",
-        "kn": "\n\nKisan Call Centre: 1800-180-1551 (Uchita / Free)",
-    }.get(lang, "")
-    return greet + answer + footer
+        return text
+    try:
+        from deep_translator import GoogleTranslator
+        result = GoogleTranslator(source="en", target=lang).translate(text)
+        return result if result and result.strip() else text
+    except Exception:
+        return text  # fallback: return English if translation fails
 
 
 # ---------------------------------------------------------------------------
@@ -626,23 +606,21 @@ async def get_iam_token() -> str:
     return _tok["token"]
 
 
-async def ask_ai(message: str) -> str:
-    clean_msg, lang = extract_lang(message)
+async def ask_ai(message: str, lang: str = "en") -> str:
+    """Generate answer in English then translate to lang."""
 
-    # Try IBM WatsonX if key looks real
+    # Try IBM WatsonX if key is real
     if WATSONX_API_KEY and "your-" not in WATSONX_API_KEY and "PASTE" not in WATSONX_API_KEY:
-        lang_names = {"hi": "Hindi", "kn": "Kannada"}
-        lang_instr = ""
-        if lang != "en":
-            lang_instr = f"\nIMPORTANT: Respond ENTIRELY in {lang_names.get(lang, 'English')}."
         gen_url = f"{WATSONX_URL}/ml/v1/text/generation?version=2023-05-29"
         prompt = (
             "You are Kisan AI, an expert Smart Farming Advisor for Indian farmers.\n"
             "Give a PRACTICAL, SPECIFIC answer the farmer can act on immediately.\n"
+            "Start your answer with a relevant emoji (🌾 for crops, 💧 for water, 🐛 for pests, 🧪 for fertilizer, 📊 for prices, 🌱 for soil).\n"
+            "Use emojis like 🌿 💧 🧪 🐛 ✅ ⚠️ 📌 before each bullet point.\n"
             "Use bullet points. Use simple language. Use Indian units (quintal, per acre, per palm, kg/ha).\n"
             "Mention exact product names, doses, timings where relevant.\n"
-            f"Reference: APMC, KVK, ICAR, MSP prices, government schemes where helpful.{lang_instr}\n\n"
-            f"FARMER QUESTION: {clean_msg}\n\nANSWER:"
+            "Reference: APMC, KVK, ICAR, MSP prices, government schemes where helpful.\n\n"
+            f"FARMER QUESTION: {message}\n\nANSWER:"
         )
         try:
             token = await get_iam_token()
@@ -660,26 +638,59 @@ async def ask_ai(message: str) -> str:
                 r.raise_for_status()
                 text = r.json()["results"][0]["generated_text"].strip()
                 if text and len(text) > 20:
-                    return text
+                    return translate_to(text, lang)
         except Exception:
             pass
 
-    answer = build_answer(clean_msg)
-    return localize(answer, lang, clean_msg)
+    # Fallback: built-in answer engine
+    english_answer = build_answer(message)
+    return translate_to(english_answer, lang)
 
 
 # ---------------------------------------------------------------------------
-# API routes
+# API routes — support BOTH /api/chat (legacy) and /api/v1/chat/ (frontend)
 # ---------------------------------------------------------------------------
 class ChatReq(BaseModel):
     message: str
+    language: str = "en"          # "en" | "hi" | "kn"
+    session_id: str | None = None  # ignored but accepted so frontend doesn't error
+    farmer_context: dict | None = None
+
+async def _do_chat(message: str, language: str) -> JSONResponse:
+    if not message.strip():
+        return JSONResponse({"reply": "Please type a question.",
+                             "response": "Please type a question.",
+                             "session_id": "demo", "message_id": "0",
+                             "intent": None, "sources": [], "docs_retrieved": 0})
+    reply = await ask_ai(message, lang=language)
+    return JSONResponse({
+        # /api/chat consumers
+        "reply": reply,
+        # /api/v1/chat/ consumers (frontend ChatPage.js)
+        "response": reply,
+        "session_id": "demo-session",
+        "message_id": str(int(time.time())),
+        "intent": detect_intent(message),
+        "language": language,
+        "sources": [],
+        "docs_retrieved": 0,
+    })
 
 @app.post("/api/chat")
-async def chat(req: ChatReq):
-    if not req.message.strip():
-        return JSONResponse({"reply": "Please type a question."})
-    reply = await ask_ai(req.message)
-    return JSONResponse({"reply": reply})
+async def chat_legacy(req: ChatReq):
+    return await _do_chat(req.message, req.language)
+
+@app.post("/api/v1/chat/")
+async def chat_v1(req: ChatReq):
+    return await _do_chat(req.message, req.language)
+
+@app.get("/api/v1/chat/sessions")
+async def sessions():
+    return JSONResponse([])
+
+@app.get("/api/v1/chat/sessions/{session_id}/messages")
+async def messages(session_id: str):
+    return JSONResponse([])
 
 @app.get("/api/status")
 async def status():
