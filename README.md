@@ -27,7 +27,7 @@ Smart Farming Advisor bridges the knowledge gap for small-scale farmers by provi
 - **Retrieval-Augmented Generation (RAG)** over trusted agricultural knowledge bases
 - **Live mandi market prices** from AgMarkNet / data.gov.in
 - **Multilingual support** (English, Hindi, Kannada)
-- **Voice input & text-to-speech** responses
+- **Text-to-speech** responses
 
 ---
 
@@ -43,7 +43,7 @@ Smart Farming Advisor bridges the knowledge gap for small-scale farmers by provi
 | 💧 Irrigation         | Smart irrigation calendar |
 | 📊 Market Prices      | Live APMC/mandi prices for 15+ crops |
 | 🌐 Multilingual       | 3 Indian languages: English, Hindi, Kannada |
-| 🎤 Voice              | Mic input + text-to-speech output |
+| 🔊 Voice              | Text-to-speech output on AI replies |
 
 ---
 
@@ -57,7 +57,7 @@ Smart Farming Advisor bridges the knowledge gap for small-scale farmers by provi
 | **Database** | PostgreSQL 16 |
 | **Frontend** | React 18, Recharts, React Router v6 |
 | **Auth**     | JWT (python-jose, passlib bcrypt) |
-| **Speech**   | Google STT, gTTS |
+| **Speech**   | Web Speech API (TTS) |
 | **Deploy**   | Docker, Docker Compose, IBM Cloud |
 
 ---
@@ -287,7 +287,6 @@ Interactive docs: `http://localhost:8000/api/docs`
 | `/market/prices` | GET | Mandi prices |
 | `/profile/` | GET/PUT | Farmer profile |
 | `/speech/tts` | POST | Text → speech |
-| `/speech/stt` | POST | Speech → text |
 
 ---
 
