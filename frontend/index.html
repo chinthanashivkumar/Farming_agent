@@ -1,0 +1,1141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>🌾 Kisan Smart Farming — Indian Farm Advisor</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='22' fill='%231b5226'/><text y='.9em' font-size='72' x='50%' dominant-baseline='middle' text-anchor='middle'>🌾</text></svg>"/>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --green:#2d7a3a;--green-dk:#1b5226;--green-lt:#e8f5e9;--green-mid:#4caf65;
+  --amber:#f59e0b;--orange:#ea580c;--bg:#f4f6f3;--white:#fff;--border:#dde8da;
+  --text:#1a2e1c;--muted:#6b7a6e;--radius:14px;--radius-sm:10px;--sidebar:270px;
+  --btn-h:52px;
+}
+body{font-family:-apple-system,"Segoe UI",system-ui,"Noto Sans Devanagari",sans-serif;background:var(--bg);color:var(--text);height:100vh;display:flex;overflow:hidden;font-size:15px}
+
+/* ── SIDEBAR ── */
+#sidebar{
+  width:var(--sidebar);flex-shrink:0;background:linear-gradient(175deg,#0f3d1e 0%,#1b5226 45%,#2d7a3a 100%);
+  display:flex;flex-direction:column;height:100vh;overflow:hidden;transition:width .25s;position:relative;
+}
+.brand{display:flex;align-items:center;gap:12px;padding:18px 16px 16px;border-bottom:1px solid rgba(255,255,255,.12)}
+.brand-logo{width:44px;height:44px;border-radius:12px;background:linear-gradient(135deg,#4caf65,#f59e0b);display:flex;align-items:center;justify-content:center;font-size:1.5rem;flex-shrink:0;box-shadow:0 2px 8px rgba(0,0,0,.3)}
+.brand-text{color:#fff;font-size:1rem;font-weight:800;letter-spacing:-.01em;line-height:1.1}
+.brand-sub{color:rgba(255,255,255,.55);font-size:.65rem;margin-top:2px;letter-spacing:.03em}
+
+.sidebar-nav{flex:1;padding:8px 10px;overflow-y:auto;display:flex;flex-direction:column;gap:2px}
+.nav-section{font-size:.6rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:rgba(255,255,255,.35);padding:12px 10px 4px;margin-top:4px}
+.nav-btn{
+  display:flex;align-items:center;gap:12px;padding:12px 12px;border-radius:10px;
+  border:none;background:none;color:rgba(255,255,255,.8);font-size:.9rem;font-weight:500;
+  cursor:pointer;text-align:left;width:100%;transition:background .15s,color .15s;min-height:48px;
+}
+.nav-btn:hover{background:rgba(255,255,255,.13);color:#fff}
+.nav-btn.active{background:linear-gradient(135deg,rgba(255,255,255,.22),rgba(255,255,255,.12));color:#fff;font-weight:700;border-left:3px solid #4caf65}
+.nav-icon{font-size:1.2rem;width:24px;text-align:center;flex-shrink:0}
+.nav-label{flex:1}
+.nav-badge{background:rgba(255,255,255,.2);border-radius:10px;font-size:.6rem;padding:2px 6px;font-weight:700}
+
+.sidebar-bottom{padding:10px 10px 18px;border-top:1px solid rgba(255,255,255,.1)}
+.status-pill{
+  display:flex;align-items:center;gap:8px;padding:9px 12px;
+  background:rgba(255,255,255,.07);border-radius:10px;margin-bottom:5px;cursor:default;
+}
+.status-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.status-dot.ok{background:#4ade80;box-shadow:0 0 6px #4ade80}
+.status-dot.warn{background:#fbbf24;box-shadow:0 0 6px #fbbf24}
+.status-text{font-size:.71rem;color:rgba(255,255,255,.7);line-height:1.3}
+
+/* ── MAIN ── */
+#main{flex:1;display:flex;flex-direction:column;height:100vh;overflow:hidden;min-width:0}
+
+/* Top bar */
+#topbar{
+  height:64px;background:var(--white);border-bottom:1px solid var(--border);
+  display:flex;align-items:center;padding:0 22px;gap:14px;flex-shrink:0;
+  box-shadow:0 1px 6px rgba(0,0,0,.06);
+}
+#menu-btn{font-size:1.4rem;background:none;border:none;cursor:pointer;color:var(--muted);padding:6px;border-radius:8px;transition:background .15s}
+#menu-btn:hover{background:var(--green-lt)}
+#topbar-title{font-size:1.05rem;font-weight:800;color:var(--text);flex:1}
+#topbar-badge{
+  padding:5px 14px;border-radius:20px;background:linear-gradient(135deg,var(--green-dk),var(--green));
+  color:#fff;font-size:.76rem;font-weight:700;border:none;cursor:pointer;
+  transition:opacity .15s;white-space:nowrap;
+}
+#topbar-badge:hover{opacity:.88}
+
+/* ── PAGES ── */
+#pages{flex:1;overflow:hidden;position:relative}
+.page{position:absolute;inset:0;overflow-y:auto;padding:26px;display:none}
+.page.active{display:block}
+
+/* ── CHAT PAGE ── */
+#page-chat{display:none;flex-direction:column;padding:0}
+#page-chat.active{display:flex}
+
+#chat-header{
+  background:linear-gradient(135deg,var(--white),#f8fdf8);border-bottom:1px solid var(--border);
+  padding:14px 20px;display:flex;align-items:center;gap:14px;flex-shrink:0;
+}
+.chat-avatar{width:44px;height:44px;border-radius:14px;background:linear-gradient(135deg,var(--green-dk),var(--green-mid));display:flex;align-items:center;justify-content:center;font-size:1.4rem;flex-shrink:0;box-shadow:0 2px 8px rgba(45,122,58,.3)}
+.chat-ai-name{font-weight:800;font-size:1rem;color:var(--text)}
+.chat-ai-status{font-size:.73rem;color:#16a34a;display:flex;align-items:center;gap:4px;margin-top:2px}
+.online-dot{width:6px;height:6px;background:#16a34a;border-radius:50%;display:inline-block;animation:pulse 1.5s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
+
+#chat-messages{
+  flex:1;overflow-y:auto;padding:20px;display:flex;flex-direction:column;gap:16px;
+  scroll-behavior:smooth;background:linear-gradient(180deg,#f8fdf8 0%,#f4f6f3 100%);
+}
+#chat-messages::-webkit-scrollbar{width:4px}
+#chat-messages::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px}
+
+/* Welcome screen */
+#chat-welcome{display:flex;flex-direction:column;align-items:center;justify-content:center;flex:1;text-align:center;gap:14px;padding:32px 20px;color:var(--muted)}
+.welcome-icon{font-size:4rem;filter:drop-shadow(0 4px 8px rgba(45,122,58,.2))}
+.welcome-title{font-size:1.4rem;font-weight:800;color:var(--text)}
+.welcome-sub{font-size:.92rem;max-width:420px;line-height:1.7;color:var(--muted)}
+.chips{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-top:4px;max-width:600px}
+.chip{
+  padding:9px 15px;border-radius:22px;background:var(--white);border:1.5px solid var(--border);
+  font-size:.82rem;color:var(--muted);cursor:pointer;transition:all .15s;font-weight:500;
+}
+.chip:hover{background:var(--green-lt);border-color:var(--green);color:var(--green);transform:translateY(-1px)}
+
+/* Messages */
+.msg-row{display:flex;gap:10px;max-width:78%;animation:popIn .2s ease}
+@keyframes popIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+.msg-row.user{align-self:flex-end;flex-direction:row-reverse}
+.msg-row.ai{align-self:flex-start}
+
+.msg-av{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.95rem;flex-shrink:0;align-self:flex-end}
+.msg-av.ai{background:linear-gradient(135deg,var(--green-dk),var(--green-mid))}
+.msg-av.user{background:var(--amber)}
+
+.bubble{
+  padding:11px 15px;border-radius:16px;font-size:.9rem;line-height:1.65;word-break:break-word;
+  max-width:100%;
+}
+.msg-row.ai .bubble{background:var(--white);border:1px solid var(--border);border-radius:4px 16px 16px 16px}
+.msg-row.user .bubble{background:var(--green);color:#fff;border-radius:16px 4px 16px 16px}
+
+.typing{display:flex;align-items:center;gap:4px;padding:12px 16px;background:var(--white);border:1px solid var(--border);border-radius:4px 16px 16px 16px;width:fit-content}
+.td{width:7px;height:7px;border-radius:50%;background:var(--green);animation:bounce .9s infinite}
+.td:nth-child(2){animation-delay:.15s}.td:nth-child(3){animation-delay:.3s}
+@keyframes bounce{0%,80%,100%{transform:scale(.6);opacity:.4}40%{transform:scale(1);opacity:1}}
+
+/* Input bar */
+#chat-input-area{
+  background:var(--white);border-top:1px solid var(--border);
+  padding:14px 18px 16px;flex-shrink:0;
+}
+#input-row{
+  display:flex;align-items:flex-end;gap:10px;background:var(--bg);
+  border:2px solid var(--border);border-radius:18px;padding:8px 8px 8px 16px;
+  transition:border-color .2s,box-shadow .2s;
+}
+#input-row:focus-within{border-color:var(--green);box-shadow:0 0 0 4px rgba(45,122,58,.1)}
+#msg-input{
+  flex:1;border:none;background:none;resize:none;font-size:.95rem;line-height:1.5;
+  min-height:40px;max-height:120px;color:var(--text);font-family:inherit;padding:5px 0;
+}
+#msg-input:focus{outline:none}
+#msg-input::placeholder{color:var(--muted)}
+#send-btn{
+  width:42px;height:42px;border-radius:12px;background:linear-gradient(135deg,var(--green),var(--green-dk));border:none;
+  color:#fff;font-size:1.1rem;cursor:pointer;display:flex;align-items:center;justify-content:center;
+  transition:all .15s;flex-shrink:0;box-shadow:0 2px 8px rgba(45,122,58,.35);
+}
+#send-btn:hover{background:var(--green-dk);transform:scale(1.05)}
+#send-btn:active{transform:scale(.93)}
+#send-btn:disabled{opacity:.5;cursor:not-allowed;transform:none;box-shadow:none}
+.hint-row{display:flex;gap:6px;margin-top:9px;flex-wrap:wrap}
+.hint{padding:5px 11px;border-radius:14px;background:var(--green-lt);border:1px solid #b2dfb8;font-size:.76rem;color:var(--green);cursor:pointer;white-space:nowrap;font-weight:600;transition:all .12s}
+.hint:hover{background:#c6e8cb;transform:translateY(-1px)}
+
+/* ── DASHBOARD PAGE ── */
+.page-title{font-size:1.5rem;font-weight:800;margin-bottom:4px;line-height:1.2}
+.page-sub{font-size:.9rem;color:var(--muted);margin-bottom:20px}
+
+.tip-bar{
+  background:linear-gradient(135deg,#f0fdf4,#dcfce7);border:1px solid #86efac;
+  border-radius:14px;padding:14px 18px;display:flex;align-items:center;gap:12px;
+  font-size:.9rem;color:#065f46;margin-bottom:22px;line-height:1.6;font-weight:500;
+  box-shadow:0 1px 4px rgba(22,163,74,.1);
+}
+.tip-icon{font-size:1.3rem;flex-shrink:0}
+
+/* Greeting banner */
+.greeting-banner{
+  background:linear-gradient(135deg,var(--green-dk) 0%,var(--green) 60%,#4caf65 100%);
+  border-radius:16px;padding:20px 24px;color:#fff;display:flex;align-items:center;
+  justify-content:space-between;margin-bottom:22px;box-shadow:0 4px 16px rgba(27,82,38,.3);
+  overflow:hidden;position:relative;
+}
+.greeting-banner::after{content:'🌾';position:absolute;right:20px;bottom:-8px;font-size:5rem;opacity:.15}
+.greet-title{font-size:1.2rem;font-weight:800;margin-bottom:4px}
+.greet-sub{font-size:.85rem;opacity:.85;line-height:1.5}
+.greet-date{font-size:1.3rem;font-weight:800;text-align:right;line-height:1.1}
+.greet-day{font-size:.72rem;opacity:.75;margin-top:2px}
+
+.stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:22px}
+.stat-card{
+  background:var(--white);border:1px solid var(--border);border-radius:var(--radius);
+  padding:18px 16px;display:flex;align-items:center;gap:14px;
+  transition:transform .15s,box-shadow .15s;cursor:default;
+}
+.stat-card:hover{transform:translateY(-3px);box-shadow:0 6px 20px rgba(0,0,0,.09)}
+.stat-ic{width:50px;height:50px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:1.5rem;flex-shrink:0}
+.ic-g{background:linear-gradient(135deg,#dcfce7,#bbf7d0)}.ic-b{background:linear-gradient(135deg,#dbeafe,#bfdbfe)}.ic-a{background:linear-gradient(135deg,#fef3c7,#fde68a)}.ic-p{background:linear-gradient(135deg,#ede9fe,#ddd6fe)}.ic-r{background:linear-gradient(135deg,#fee2e2,#fecaca)}
+.stat-lbl{font-size:.72rem;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.05em}
+.stat-val{font-size:1.5rem;font-weight:800;color:var(--text);line-height:1.2;margin-top:1px}
+.stat-note{font-size:.73rem;color:#16a34a;margin-top:3px;font-weight:500}
+
+/* Quick actions — large farmer-friendly buttons */
+.section-label{font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:12px}
+.quick-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:24px}
+.quick-card{
+  background:var(--white);border:1.5px solid var(--border);border-radius:16px;
+  padding:20px 14px;text-align:center;cursor:pointer;transition:all .15s;
+  text-decoration:none;box-shadow:0 1px 4px rgba(0,0,0,.05);
+}
+.quick-card:hover{transform:translateY(-4px);box-shadow:0 8px 24px rgba(0,0,0,.12);border-color:var(--green)}
+.quick-card:active{transform:scale(.97)}
+.qc-icon{font-size:2rem;margin-bottom:8px;display:block}
+.qc-label{font-size:.82rem;font-weight:700;color:var(--text);line-height:1.2}
+.qc-sub{font-size:.68rem;color:var(--muted);margin-top:2px}
+
+.bottom-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.card{background:var(--white);border:1px solid var(--border);border-radius:var(--radius);padding:18px}
+.card-title{font-size:.95rem;font-weight:800;margin-bottom:14px;display:flex;align-items:center;gap:7px;color:var(--text)}
+
+.price-row{display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-bottom:1px solid var(--border)}
+.price-row:last-child{border:none}
+.price-name{font-size:.88rem;font-weight:700}
+.price-mkt{font-size:.72rem;color:var(--muted);font-weight:400}
+.price-amt{font-size:1.05rem;font-weight:800;color:var(--green)}
+.price-change{font-size:.68rem;margin-left:4px}
+.price-unit{font-size:.68rem;color:var(--muted)}
+
+.cal-row{display:flex;align-items:center;gap:12px;padding:8px 0;border-bottom:1px solid var(--border)}
+.cal-row:last-child{border:none}
+.cal-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+.cal-crop{font-size:.87rem;font-weight:700}
+.cal-act{font-size:.73rem;color:var(--muted)}
+.cal-day{font-size:.76rem;font-weight:800;margin-left:auto;flex-shrink:0;padding:3px 8px;border-radius:8px}
+
+/* ── INFO PAGES (soil, market, etc.) ── */
+.info-form{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+.form-group{display:flex;flex-direction:column;gap:6px;margin-bottom:14px}
+.form-label{font-size:.82rem;font-weight:700;color:var(--muted);letter-spacing:.01em}
+.form-input{
+  padding:13px 14px;border:2px solid var(--border);border-radius:12px;
+  font-size:.95rem;font-family:inherit;color:var(--text);background:var(--white);
+  transition:border-color .15s,box-shadow .15s;
+}
+.form-input:focus{outline:none;border-color:var(--green);box-shadow:0 0 0 4px rgba(45,122,58,.1)}
+.form-btn{
+  padding:0 24px;background:linear-gradient(135deg,var(--green),var(--green-dk));color:#fff;border:none;border-radius:12px;
+  font-size:.95rem;font-weight:700;cursor:pointer;transition:all .15s;font-family:inherit;
+  height:var(--btn-h);display:inline-flex;align-items:center;justify-content:center;gap:6px;
+  box-shadow:0 2px 8px rgba(27,82,38,.25);
+}
+.form-btn:hover{opacity:.9;transform:translateY(-1px);box-shadow:0 4px 14px rgba(27,82,38,.35)}
+.form-btn:active{transform:scale(.97);opacity:1}
+.lvl-btn{
+  padding:8px 4px;border-radius:10px;border:2px solid var(--border);
+  background:var(--white);color:var(--muted);font-family:inherit;font-weight:700;font-size:.82rem;
+  cursor:pointer;text-align:center;transition:all .15s;line-height:1.4;
+}
+.lvl-btn:hover{border-color:var(--green);color:var(--green);background:var(--green-lt)}
+.form-btn:disabled{opacity:.5;cursor:not-allowed;transform:none;box-shadow:none}
+.form-btn.blue{background:linear-gradient(135deg,#0ea5e9,#0284c7)}
+.form-btn.amber{background:linear-gradient(135deg,#f59e0b,#d97706)}
+
+.result-box{
+  margin-top:18px;background:linear-gradient(135deg,#f0fdf4,#f8fdf9);border:1.5px solid #86efac;border-radius:14px;
+  padding:18px;font-size:.92rem;line-height:1.8;color:var(--text);
+}
+.result-box h4{font-size:.88rem;font-weight:800;color:var(--green-dk);margin-bottom:10px;display:flex;align-items:center;gap:6px;padding-bottom:8px;border-bottom:1px solid #bbf7d0}
+
+/* markdown-ish styling inside bubbles/result */
+.bubble b,.bubble strong,.result-box b,.result-box strong{font-weight:700;color:var(--text)}
+.bubble ul,.result-box ul{margin:8px 0 8px 20px}
+.bubble li,.result-box li{margin-bottom:4px}
+
+/* Spinner */
+.spin{display:inline-block;width:16px;height:16px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .6s linear infinite;vertical-align:middle;margin-right:6px}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* Responsive */
+@media(max-width:1100px){
+}
+@media(max-width:900px){
+  #sidebar{position:fixed;z-index:100;height:100vh;left:-290px;transition:left .25s}
+  #sidebar.open{left:0}
+  #overlay{display:block !important}
+  .stats-grid{grid-template-columns:1fr 1fr}
+  .quick-grid{grid-template-columns:repeat(4,1fr)}
+  .bottom-grid{grid-template-columns:1fr}
+  .info-form{grid-template-columns:1fr}
+}
+@media(max-width:600px){
+  .stats-grid{grid-template-columns:1fr 1fr}
+  .quick-grid{grid-template-columns:repeat(2,1fr)}
+  .page{padding:16px}
+  #chat-messages{padding:14px}
+  .greeting-banner{flex-direction:column;gap:10px;text-align:center}
+  .greeting-banner::after{display:none}
+}
+#overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:99}
+</style>
+</head>
+<body>
+
+<!-- Sidebar -->
+<div id="sidebar">
+  <div class="brand">
+    <div class="brand-logo">🌿</div>
+    <div>
+      <div class="brand-text">Kisan AI</div>
+      <div class="brand-sub">SMART FARMING ADVISOR</div>
+    </div>
+  </div>
+  <nav class="sidebar-nav">
+    <div class="nav-section">Main</div>
+    <button class="nav-btn active" onclick="showPage('dashboard')"><span class="nav-icon">🏠</span><span class="nav-label">Dashboard</span></button>
+    <button class="nav-btn" onclick="showPage('chat')"><span class="nav-icon">🤖</span><span class="nav-label">Ask AI</span><span class="nav-badge">AI</span></button>
+    <div class="nav-section">Farming Tools</div>
+    <button class="nav-btn" onclick="showPage('crops')"><span class="nav-icon">🌾</span><span class="nav-label">Crop Advisor</span></button>
+    <button class="nav-btn" onclick="showPage('soil')"><span class="nav-icon">🪱</span><span class="nav-label">Soil Analysis</span></button>
+    <button class="nav-btn" onclick="showPage('pests')"><span class="nav-icon">🐛</span><span class="nav-label">Pest & Disease</span></button>
+    <button class="nav-btn" onclick="showPage('fertilizer')"><span class="nav-icon">🧪</span><span class="nav-label">Fertilizer</span></button>
+    <button class="nav-btn" onclick="showPage('irrigation')"><span class="nav-icon">💧</span><span class="nav-label">Irrigation</span></button>
+    <div class="nav-section">Market</div>
+    <button class="nav-btn" onclick="showPage('market')"><span class="nav-icon">📊</span><span class="nav-label">Market Prices</span></button>
+  </nav>
+  <div class="sidebar-bottom">
+    <div class="status-pill">
+      <div class="status-dot warn" id="ibm-dot"></div>
+      <div class="status-text" id="ibm-status">IBM Granite AI…</div>
+    </div>
+  </div>
+</div>
+
+<div id="overlay" onclick="closeSidebar()"></div>
+
+<!-- Main content -->
+<div id="main">
+  <!-- Topbar -->
+  <div id="topbar">
+    <button id="menu-btn" onclick="toggleSidebar()">☰</button>
+    <span id="topbar-title">🏠 Dashboard</span>
+    <button id="topbar-badge" onclick="showPage('chat')">🤖 Ask AI</button>
+  </div>
+
+  <!-- Pages -->
+  <div id="pages">
+
+    <!-- ── DASHBOARD ── -->
+    <div class="page active" id="page-dashboard">
+
+      <div class="greeting-banner">
+        <div>
+          <div class="greet-title" id="greet-msg">🙏 Good Morning, Farmer!</div>
+          <div class="greet-sub">Your farm overview is ready. Check today's tips and crop calendar.</div>
+        </div>
+        <div>
+          <div class="greet-date" id="greet-date">—</div>
+          <div class="greet-day" id="greet-day">—</div>
+        </div>
+      </div>
+
+      <div class="tip-bar">
+        <span class="tip-icon">💡</span><span id="tip-text">Loading farming tip…</span>
+      </div>
+
+      <div class="stats-grid">
+        <div class="stat-card"><div class="stat-ic ic-a">🌾</div><div><div class="stat-lbl">Current Season</div><div class="stat-val" id="dash-season">—</div><div class="stat-note" id="dash-month">—</div></div></div>
+        <div class="stat-card"><div class="stat-ic ic-p">🌿</div><div><div class="stat-lbl">Arecanut Price</div><div class="stat-val">₹42,000</div><div class="stat-note">Shivamogga /qt</div></div></div>
+        <div class="stat-card"><div class="stat-ic ic-g">🥥</div><div><div class="stat-lbl">Coconut Copra</div><div class="stat-val">₹10,500</div><div class="stat-note">Udupi /qt</div></div></div>
+        <div class="stat-card"><div class="stat-ic ic-b">🍂</div><div><div class="stat-lbl">Turmeric Price</div><div class="stat-val">₹12,000</div><div class="stat-note">Erode /qt</div></div></div>
+      </div>
+
+      <div class="section-label">⚡ Quick Actions</div>
+      <div class="quick-grid">
+        <div class="quick-card" onclick="showPage('chat')"><span class="qc-icon">🤖</span><div class="qc-label">Ask AI</div><div class="qc-sub">Any farm question</div></div>
+        <div class="quick-card" onclick="showPage('crops')"><span class="qc-icon">🌾</span><div class="qc-label">Crops</div><div class="qc-sub">Best crop advice</div></div>
+        <div class="quick-card" onclick="showPage('soil')"><span class="qc-icon">🪱</span><div class="qc-label">Soil</div><div class="qc-sub">NPK analysis</div></div>
+        <div class="quick-card" onclick="showPage('pests')"><span class="qc-icon">🐛</span><div class="qc-label">Pests</div><div class="qc-sub">Identify &amp; treat</div></div>
+        <div class="quick-card" onclick="showPage('fertilizer')"><span class="qc-icon">🧪</span><div class="qc-label">Fertilizer</div><div class="qc-sub">Dose &amp; schedule</div></div>
+        <div class="quick-card" onclick="showPage('irrigation')"><span class="qc-icon">💧</span><div class="qc-label">Irrigation</div><div class="qc-sub">Water schedule</div></div>
+        <div class="quick-card" onclick="showPage('market')"><span class="qc-icon">📊</span><div class="qc-label">Market</div><div class="qc-sub">Mandi prices</div></div>
+      </div>
+
+      <div class="bottom-grid">
+        <div class="card">
+          <div class="card-title">📊 Today's Mandi Prices</div>
+          <div class="price-row"><div><div class="price-name">🌿 Arecanut (Chali)</div><div class="price-mkt">Shivamogga APMC</div></div><div><span class="price-amt">₹42,000</span><span class="price-change" style="color:#16a34a">▲</span><span class="price-unit">/qt</span></div></div>
+          <div class="price-row"><div><div class="price-name">🥥 Coconut (Copra)</div><div class="price-mkt">Udupi APMC</div></div><div><span class="price-amt">₹10,500</span><span class="price-change" style="color:#dc2626">▼</span><span class="price-unit">/qt</span></div></div>
+          <div class="price-row"><div><div class="price-name">🍌 Banana (G9)</div><div class="price-mkt">Hoskote APMC</div></div><div><span class="price-amt">₹1,200</span><span class="price-change" style="color:#16a34a">▲</span><span class="price-unit">/qt</span></div></div>
+          <div class="price-row"><div><div class="price-name">🌾 Paddy (BPT-5204)</div><div class="price-mkt">Shivamogga</div></div><div><span class="price-amt">₹2,183</span><span class="price-unit">/qt MSP</span></div></div>
+          <div class="price-row"><div><div class="price-name">🧅 Onion</div><div class="price-mkt">Nashik APMC</div></div><div><span class="price-amt">₹1,820</span><span class="price-change" style="color:#16a34a">▲</span><span class="price-unit">/qt</span></div></div>
+        </div>
+        <div class="card">
+          <div class="card-title">🗓️ Seasonal Crop Calendar</div>
+          <div class="cal-row"><div class="cal-dot" style="background:#16a34a"></div><div><div class="cal-crop">🌾 Paddy (Kharif)</div><div class="cal-act">Transplanting window</div></div><div class="cal-day" style="color:#16a34a;background:#f0fdf4">+5 days</div></div>
+          <div class="cal-row"><div class="cal-dot" style="background:#d97706"></div><div><div class="cal-crop">🌿 Arecanut</div><div class="cal-act">Koleroga spray due</div></div><div class="cal-day" style="color:#d97706;background:#fffbeb">Today</div></div>
+          <div class="cal-row"><div class="cal-dot" style="background:#0ea5e9"></div><div><div class="cal-crop">🍌 Banana</div><div class="cal-act">Fertilizer top dressing</div></div><div class="cal-day" style="color:#0ea5e9;background:#f0f9ff">+3 days</div></div>
+          <div class="cal-row"><div class="cal-dot" style="background:#7c3aed"></div><div><div class="cal-crop">🌶️ Chilli</div><div class="cal-act">Thrips scouting due</div></div><div class="cal-day" style="color:#7c3aed;background:#faf5ff">Today</div></div>
+          <div class="cal-row"><div class="cal-dot" style="background:#dc2626"></div><div><div class="cal-crop">🍂 Turmeric</div><div class="cal-act">Earthing-up operation</div></div><div class="cal-day" style="color:#dc2626;background:#fef2f2">+7 days</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── CHAT PAGE ── -->
+    <div class="page" id="page-chat" style="padding:0;display:none;flex-direction:column">
+
+      <div id="chat-header">
+        <div class="chat-avatar">🌿</div>
+        <div>
+          <div class="chat-ai-name">Kisan AI — IBM Granite · Smart Farming Advisor</div>
+          <div class="chat-ai-status"><span class="online-dot"></span> Online · RAG-powered · Indian Farm Expert</div>
+        </div>
+        <button onclick="clearChat()" style="margin-left:auto;padding:7px 14px;border:1.5px solid var(--border);border-radius:10px;background:none;cursor:pointer;font-size:.8rem;color:var(--muted);font-weight:600">🗑 Clear</button>
+      </div>
+
+      <div id="chat-messages">
+        <div id="chat-welcome">
+          <div class="welcome-icon">🌾</div>
+          <div class="welcome-title">Namaste! I'm your Kisan AI</div>
+          <div class="welcome-sub">Ask me anything about arecanut, coconut, paddy, banana, sugarcane, coffee, pepper, turmeric, ginger, onion, chilli, or any other crop. I know Indian farming!</div>
+          <div class="chips">
+            <div class="chip" onclick="sendQuick(this)">🌿 Arecanut koleroga treatment</div>
+            <div class="chip" onclick="sendQuick(this)">🥥 Coconut fertilizer per palm</div>
+            <div class="chip" onclick="sendQuick(this)">🌾 Paddy SRI method benefits</div>
+            <div class="chip" onclick="sendQuick(this)">🍌 Banana bunch weight increase</div>
+            <div class="chip" onclick="sendQuick(this)">🌶️ Chilli thrips management</div>
+            <div class="chip" onclick="sendQuick(this)">🍂 Turmeric rhizome rot disease</div>
+            <div class="chip" onclick="sendQuick(this)">🧅 Onion mandi price Nashik</div>
+            <div class="chip" onclick="sendQuick(this)">☕ Coffee leaf rust spray</div>
+            <div class="chip" onclick="sendQuick(this)">🌧️ Will rain affect spraying today?</div>
+            <div class="chip" onclick="sendQuick(this)">📈 Best crop for laterite soil Karnataka</div>
+          </div>
+        </div>
+      </div>
+
+      <div id="chat-input-area">
+        <div id="input-row">
+          <textarea id="msg-input" placeholder="Ask about arecanut, coconut, paddy, banana, turmeric… (Enter to send)" rows="1"></textarea>
+          <button id="send-btn" onclick="sendMessage()">➤</button>
+        </div>
+        <div class="hint-row">
+          <span class="hint" onclick="setInput('Arecanut koleroga disease treatment')">🌿 Arecanut</span>
+          <span class="hint" onclick="setInput('Paddy fertilizer recommendation')">🌾 Paddy</span>
+          <span class="hint" onclick="setInput('Banana bunch development')">🍌 Banana</span>
+          <span class="hint" onclick="setInput('Chilli pest management')">🌶️ Chilli</span>
+          <span class="hint" onclick="setInput('Coconut irrigation summer')">🥥 Coconut</span>
+          <span class="hint" onclick="setInput('Market price today arecanut')">📊 Market</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── CROPS PAGE ── -->
+    <div class="page" id="page-crops">
+      <div class="page-title">🌾 Crop Advisor</div>
+      <div class="page-sub">AI-powered crop recommendations for Indian soils, seasons, and regions</div>
+      <div style="display:flex;gap:10px;margin-bottom:18px;flex-wrap:wrap">
+        <button class="form-btn" id="kharif-btn" onclick="setSeason('kharif')">☔ Kharif (June–Oct)</button>
+        <button class="form-btn" id="rabi-btn" onclick="setSeason('rabi')" style="opacity:.65">❄️ Rabi (Oct–Mar)</button>
+        <button class="form-btn" id="summer-btn" onclick="setSeason('summer')" style="opacity:.65">☀️ Summer/Zaid</button>
+        <button class="form-btn" id="plantation-btn" onclick="setSeason('plantation')" style="opacity:.65">🌿 Plantation</button>
+      </div>
+      <div class="info-form">
+        <div>
+          <div class="form-group"><label class="form-label">State / District</label>
+            <select class="form-input" id="cr-state">
+              <option value="">Select state</option>
+              <option>Karnataka</option><option>Kerala</option><option>Tamil Nadu</option>
+              <option>Andhra Pradesh</option><option>Telangana</option><option>Maharashtra</option>
+              <option>Madhya Pradesh</option><option>Uttar Pradesh</option><option>Punjab</option>
+              <option>West Bengal</option><option>Assam</option><option>Odisha</option>
+              <option>Gujarat</option><option>Rajasthan</option><option>Bihar</option>
+            </select>
+          </div>
+          <div class="form-group"><label class="form-label">Soil Type</label>
+            <select class="form-input" id="cr-soil">
+              <option value="">Select soil type</option>
+              <option>Red Laterite (Coastal Karnataka/Kerala)</option>
+              <option>Black Cotton (Vertisols)</option>
+              <option>Alluvial (River Plains)</option>
+              <option>Sandy Loam</option><option>Clay Loam</option><option>Loamy</option>
+            </select>
+          </div>
+          <div class="form-group"><label class="form-label">Water Availability</label>
+            <select class="form-input" id="cr-water">
+              <option value="good">Good — Canal/Borewell</option>
+              <option value="drip">Drip Irrigation</option>
+              <option value="moderate" selected>Moderate — Occasional</option>
+              <option value="scarce">Scarce — Rainfed Only</option>
+            </select>
+          </div>
+          <button class="form-btn" id="cr-btn" onclick="getCropAdvice()" style="width:100%">🌾 Get AI Recommendation</button>
+        </div>
+        <div>
+          <div class="card" style="margin-bottom:14px">
+            <div class="card-title">🌱 <span id="season-label">Kharif</span> Crops</div>
+            <div id="season-crops" style="display:flex;flex-wrap:wrap;gap:7px;font-size:.82rem"></div>
+          </div>
+          <div id="cr-result" style="display:none" class="result-box"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── SOIL PAGE ── -->
+    <div class="page" id="page-soil">
+      <div class="page-title">🪱 Soil Analysis</div>
+      <div class="page-sub">Answer a few simple questions — AI will recommend the best crops and fertilizers for your farm</div>
+
+      <!-- Tip banner -->
+      <div style="background:#e8f5e9;border:1.5px solid #a5d6a7;border-radius:12px;padding:12px 16px;margin-bottom:18px;display:flex;gap:12px;align-items:flex-start">
+        <span style="font-size:1.4rem">💡</span>
+        <div style="font-size:.85rem;color:var(--text)">
+          <strong>Don't know exact values?</strong> Just pick what looks closest — AI will still give useful advice!
+          Get a <strong>free Soil Health Card</strong> from your nearest KVK or Agriculture Dept. office for exact values.<br>
+          <span style="color:var(--muted);font-size:.78rem">📞 Kisan Call Centre: 1800-180-1551 (Free, 24×7)</span>
+        </div>
+      </div>
+
+      <div class="info-form">
+        <div>
+          <!-- Soil appearance -->
+          <div class="form-group">
+            <label class="form-label">🪨 What does your soil look like?</label>
+            <select class="form-input" id="s-type">
+              <option value="">I don't know / Not sure</option>
+              <option value="black cotton">Black / Dark soil (sticks to hands when wet)</option>
+              <option value="red laterite">Red / Reddish brown soil</option>
+              <option value="alluvial">Brown soil (near river plains)</option>
+              <option value="sandy loam">Sandy / Light soil (drains very fast)</option>
+              <option value="clay">Heavy soil (waterlogged easily)</option>
+              <option value="loamy">Loamy / Mixed soil</option>
+            </select>
+          </div>
+
+          <!-- State -->
+          <div class="form-group">
+            <label class="form-label">📍 Your State</label>
+            <select class="form-input" id="s-state">
+              <option value="">Select your state…</option>
+              <option>Andhra Pradesh</option><option>Assam</option><option>Bihar</option>
+              <option>Chhattisgarh</option><option>Gujarat</option><option>Haryana</option>
+              <option>Himachal Pradesh</option><option>Jharkhand</option><option>Karnataka</option>
+              <option>Kerala</option><option>Madhya Pradesh</option><option>Maharashtra</option>
+              <option>Odisha</option><option>Punjab</option><option>Rajasthan</option>
+              <option>Tamil Nadu</option><option>Telangana</option><option>Uttar Pradesh</option>
+              <option>Uttarakhand</option><option>West Bengal</option>
+            </select>
+          </div>
+
+          <!-- pH slider -->
+          <div class="form-group">
+            <label class="form-label">⚗️ Soil pH (acidity) &nbsp;<span id="ph-label" style="font-weight:700"></span></label>
+            <input type="range" id="s-ph" min="4" max="10" step="0.5" value="6.5"
+              oninput="updatePH(this.value)"
+              style="width:100%;accent-color:var(--green);height:6px;cursor:pointer"/>
+            <div style="display:flex;justify-content:space-between;font-size:.73rem;color:var(--muted);margin-top:3px">
+              <span>4 — Very Acidic</span>
+              <span id="ph-val" style="font-weight:800;color:var(--green)">pH 6.5</span>
+              <span>10 — Very Alkaline</span>
+            </div>
+            <div style="font-size:.77rem;color:var(--muted);margin-top:4px">If unsure, leave at 6.5 — that's the most common for Indian farms.</div>
+          </div>
+
+          <!-- NPK level pickers -->
+          <div style="font-size:.8rem;font-weight:700;color:var(--muted);margin:10px 0 6px;text-transform:uppercase;letter-spacing:.04em">Soil Nutrient Levels</div>
+
+          <div class="form-group">
+            <label class="form-label">🌿 Nitrogen — how are your plants growing?</label>
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:7px">
+              <button type="button" class="lvl-btn" id="n-low"    onclick="pickLevel('n','low')"   >🔴 Low<br><span style="font-size:.7rem;font-weight:400">Pale / yellow leaves</span></button>
+              <button type="button" class="lvl-btn" id="n-medium" onclick="pickLevel('n','medium')">🟡 Medium<br><span style="font-size:.7rem;font-weight:400">Average growth</span></button>
+              <button type="button" class="lvl-btn" id="n-high"   onclick="pickLevel('n','high')"  >🟢 High<br><span style="font-size:.7rem;font-weight:400">Dark green, lush</span></button>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">🔵 Phosphorus — how are roots and flowers?</label>
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:7px">
+              <button type="button" class="lvl-btn" id="p-low"    onclick="pickLevel('p','low')"   >🔴 Low<br><span style="font-size:.7rem;font-weight:400">Poor roots, less flowers</span></button>
+              <button type="button" class="lvl-btn" id="p-medium" onclick="pickLevel('p','medium')">🟡 Medium<br><span style="font-size:.7rem;font-weight:400">Normal</span></button>
+              <button type="button" class="lvl-btn" id="p-high"   onclick="pickLevel('p','high')"  >🟢 High<br><span style="font-size:.7rem;font-weight:400">Strong roots</span></button>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">🟡 Potassium — how are stems and fruits?</label>
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:7px">
+              <button type="button" class="lvl-btn" id="k-low"    onclick="pickLevel('k','low')"   >🔴 Low<br><span style="font-size:.7rem;font-weight:400">Weak stems, brown edges</span></button>
+              <button type="button" class="lvl-btn" id="k-medium" onclick="pickLevel('k','medium')">🟡 Medium<br><span style="font-size:.7rem;font-weight:400">Normal</span></button>
+              <button type="button" class="lvl-btn" id="k-high"   onclick="pickLevel('k','high')"  >🟢 High<br><span style="font-size:.7rem;font-weight:400">Big fruits, strong</span></button>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">🤎 Organic matter — do you add compost/FYM?</label>
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:7px">
+              <button type="button" class="lvl-btn" id="oc-low"    onclick="pickLevel('oc','low')"   >🔴 Low<br><span style="font-size:.7rem;font-weight:400">Never added</span></button>
+              <button type="button" class="lvl-btn" id="oc-medium" onclick="pickLevel('oc','medium')">🟡 Medium<br><span style="font-size:.7rem;font-weight:400">Sometimes add</span></button>
+              <button type="button" class="lvl-btn" id="oc-high"   onclick="pickLevel('oc','high')"  >🟢 High<br><span style="font-size:.7rem;font-weight:400">Add every year</span></button>
+            </div>
+          </div>
+
+          <button class="form-btn" id="s-btn" onclick="getSoilAdvice()" style="width:100%;margin-top:6px">🪱 Get My Soil Advice</button>
+        </div>
+
+        <div>
+          <!-- How to read Soil Health Card -->
+          <div class="card" style="margin-bottom:14px">
+            <div class="card-title">📖 How to read your Soil Health Card</div>
+            <div style="font-size:.82rem;display:flex;flex-direction:column;gap:8px">
+              <div style="display:grid;grid-template-columns:1.2rem 5.5rem 1fr 1fr 1fr;gap:4px;align-items:center;border-bottom:2px solid var(--border);padding-bottom:5px;font-weight:700;color:var(--muted);font-size:.72rem">
+                <span></span><span>Nutrient</span><span style="color:#dc2626">🔴 Low</span><span style="color:#d97706">🟡 Medium</span><span style="color:#16a34a">🟢 High</span>
+              </div>
+              <div style="display:grid;grid-template-columns:1.2rem 5.5rem 1fr 1fr 1fr;gap:4px;align-items:center;border-bottom:1px solid var(--border);padding-bottom:5px">
+                <span>🌿</span><span style="font-weight:600">Nitrogen</span><span style="color:#dc2626">&lt;280 kg/ha</span><span style="color:#d97706">280–560</span><span style="color:#16a34a">&gt;560</span>
+              </div>
+              <div style="display:grid;grid-template-columns:1.2rem 5.5rem 1fr 1fr 1fr;gap:4px;align-items:center;border-bottom:1px solid var(--border);padding-bottom:5px">
+                <span>🔵</span><span style="font-weight:600">Phosphorus</span><span style="color:#dc2626">&lt;10 kg/ha</span><span style="color:#d97706">10–25</span><span style="color:#16a34a">&gt;25</span>
+              </div>
+              <div style="display:grid;grid-template-columns:1.2rem 5.5rem 1fr 1fr 1fr;gap:4px;align-items:center;border-bottom:1px solid var(--border);padding-bottom:5px">
+                <span>🟡</span><span style="font-weight:600">Potassium</span><span style="color:#dc2626">&lt;110 kg/ha</span><span style="color:#d97706">110–280</span><span style="color:#16a34a">&gt;280</span>
+              </div>
+              <div style="display:grid;grid-template-columns:1.2rem 5.5rem 1fr 1fr 1fr;gap:4px;align-items:center;border-bottom:1px solid var(--border);padding-bottom:5px">
+                <span>🤎</span><span style="font-weight:600">Organic C</span><span style="color:#dc2626">&lt;0.5%</span><span style="color:#d97706">0.5–0.75%</span><span style="color:#16a34a">&gt;0.75%</span>
+              </div>
+              <div style="display:grid;grid-template-columns:1.2rem 5.5rem 1fr 1fr 1fr;gap:4px;align-items:center">
+                <span>⚗️</span><span style="font-weight:600">Soil pH</span><span style="color:#dc2626">&lt;5.5 Acidic</span><span style="color:#16a34a">6.0–7.0 ✅</span><span style="color:#d97706">&gt;7.5 Alkaline</span>
+              </div>
+            </div>
+          </div>
+          <div id="s-result" style="display:none" class="result-box"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── PESTS PAGE ── -->
+    <div class="page" id="page-pests">
+      <div class="page-title">🐛 Pest & Disease Diagnosis</div>
+      <div class="page-sub">Describe symptoms — AI identifies the problem and gives organic + chemical treatment</div>
+      <div class="info-form">
+        <div>
+          <div class="form-group"><label class="form-label">Crop Name</label>
+            <input class="form-input" id="p-crop" placeholder="e.g. Arecanut, Coconut, Paddy, Banana, Chilli"/>
+          </div>
+          <div class="form-group"><label class="form-label">Describe Symptoms in Detail</label>
+            <textarea class="form-input" id="p-sym" rows="5" placeholder="e.g. Arecanut bunches turning black and falling prematurely, dark brown lesions on bunch stalk, started 3 weeks ago during monsoon…" style="resize:vertical"></textarea>
+          </div>
+          <button class="form-btn" id="p-btn" onclick="getPestAdvice()" style="width:100%">🔬 Diagnose &amp; Get Treatment</button>
+        </div>
+        <div>
+          <div class="card" style="margin-bottom:14px">
+            <div class="card-title">📚 Common Indian Crop Issues</div>
+            <div style="display:flex;flex-direction:column;gap:7px">
+              <div class="chip" style="text-align:left;border-radius:10px;padding:10px 14px" onclick="fillPest('Arecanut','Bunches turning black, premature fruit drop during monsoon, bunch stalk rotting')">🌿 Arecanut Koleroga (Fruit Rot)</div>
+              <div class="chip" style="text-align:left;border-radius:10px;padding:10px 14px" onclick="fillPest('Coconut','Weevil bore holes in trunk, frass oozing, yellow crown, wilting')">🥥 Coconut Red Palm Weevil</div>
+              <div class="chip" style="text-align:left;border-radius:10px;padding:10px 14px" onclick="fillPest('Paddy','Spindle shaped grey lesions on leaves, collar region turning grey')">🌾 Paddy Blast Disease</div>
+              <div class="chip" style="text-align:left;border-radius:10px;padding:10px 14px" onclick="fillPest('Banana','Yellow leaves wilting from bottom, pseudostem splitting')">🍌 Banana Panama Wilt</div>
+              <div class="chip" style="text-align:left;border-radius:10px;padding:10px 14px" onclick="fillPest('Chilli','Curled leaves, silvery streaks, tiny insects on leaves and flowers')">🌶️ Chilli Thrips &amp; Mites</div>
+              <div class="chip" style="text-align:left;border-radius:10px;padding:10px 14px" onclick="fillPest('Turmeric','Rhizome rotting, plant yellowing from collar region, foul smell')">🍂 Turmeric Rhizome Rot</div>
+              <div class="chip" style="text-align:left;border-radius:10px;padding:10px 14px" onclick="fillPest('Maize','Ragged whorl leaves with frass, caterpillars feeding inside')">🌽 Maize Fall Armyworm</div>
+            </div>
+          </div>
+          <div id="p-result" style="display:none" class="result-box"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── FERTILIZER PAGE ── -->
+    <div class="page" id="page-fertilizer">
+      <div class="page-title">🧪 Fertilizer Advisor</div>
+      <div class="page-sub">Stage-wise fertilizer plans for Indian crops — quantities per acre</div>
+      <div class="info-form">
+        <div>
+          <div class="form-group"><label class="form-label">Select Crop</label>
+            <select class="form-input" id="f-crop">
+              <option value="">— Select your crop —</option>
+              <optgroup label="Plantation Crops">
+                <option>Arecanut</option><option>Coconut</option><option>Coffee</option><option>Pepper</option>
+              </optgroup>
+              <optgroup label="Spices">
+                <option>Turmeric</option><option>Ginger</option><option>Chilli</option>
+              </optgroup>
+              <optgroup label="Fruits">
+                <option>Banana</option><option>Mango</option><option>Papaya</option>
+              </optgroup>
+              <optgroup label="Food Crops">
+                <option>Paddy (Rice)</option><option>Maize</option><option>Wheat</option>
+                <option>Sugarcane</option><option>Cotton</option><option>Soybean</option>
+              </optgroup>
+              <optgroup label="Vegetables">
+                <option>Onion</option><option>Tomato</option><option>Potato</option>
+              </optgroup>
+            </select>
+          </div>
+          <div class="form-group"><label class="form-label">Growth Stage</label>
+            <select class="form-input" id="f-stage">
+              <option value="basal">Basal / Sowing / Planting</option>
+              <option value="vegetative">Vegetative Growth (30-60 days)</option>
+              <option value="flowering">Flowering / Bunch Formation</option>
+              <option value="fruiting">Fruiting / Yield Stage</option>
+              <option value="ratoon">Ratoon / Perennial (annual dose)</option>
+            </select>
+          </div>
+          <div class="form-group"><label class="form-label">Farm Area (acres)</label>
+            <input class="form-input" id="f-area" type="number" step="0.5" value="1" placeholder="1"/>
+          </div>
+          <button class="form-btn" id="f-btn" onclick="getFertAdvice()" style="width:100%">🧪 Get Fertilizer Plan</button>
+        </div>
+        <div>
+          <div class="card" style="margin-bottom:14px">
+            <div class="card-title">📋 Fertilizer Quick Reference</div>
+            <div style="font-size:.82rem;display:flex;flex-direction:column;gap:7px">
+              <div style="padding:9px;background:var(--bg);border-radius:10px"><b>Urea (46% N)</b> — Cheapest N. Top dressing. Fast acting.</div>
+              <div style="padding:9px;background:var(--bg);border-radius:10px"><b>DAP (18-46-0)</b> — N + P at sowing. Root development.</div>
+              <div style="padding:9px;background:var(--bg);border-radius:10px"><b>SSP (0-16-0+S)</b> — Phosphorus + Sulfur. Cheaper than DAP.</div>
+              <div style="padding:9px;background:var(--bg);border-radius:10px"><b>MOP (0-0-60)</b> — Potassium. Fruiting, disease resistance.</div>
+              <div style="padding:9px;background:var(--bg);border-radius:10px"><b>NPK 17:17:17</b> — Balanced. All growth stages.</div>
+              <div style="padding:9px;background:var(--bg);border-radius:10px"><b>FYM / Compost</b> — 10-15 t/ha. Improves soil health.</div>
+              <div style="padding:9px;background:#fef3c7;border-radius:10px;color:#92400e"><b>📞 Kisan Call Centre: 1800-180-1551</b> (Free)</div>
+            </div>
+          </div>
+          <div id="f-result" style="display:none" class="result-box"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── IRRIGATION PAGE ── -->
+    <div class="page" id="page-irrigation">
+      <div class="page-title">💧 Irrigation Advisor</div>
+      <div class="page-sub">Water scheduling for plantation crops, vegetables, and field crops</div>
+      <div class="info-form">
+        <div>
+          <div class="form-group"><label class="form-label">Crop Name</label>
+            <input class="form-input" id="ir-crop" placeholder="e.g. Arecanut, Coconut, Paddy, Banana, Sugarcane"/>
+          </div>
+          <div class="form-group"><label class="form-label">Irrigation Method</label>
+            <select class="form-input" id="ir-type">
+              <option value="drip">💧 Drip Irrigation</option>
+              <option value="sprinkler">🌀 Sprinkler</option>
+              <option value="flood" selected>🌊 Flood / Furrow</option>
+              <option value="rainfed">🌧️ Rainfed Only</option>
+            </select>
+          </div>
+          <div class="form-group"><label class="form-label">Growth Stage</label>
+            <select class="form-input" id="ir-stage">
+              <option value="sowing">Sowing</option>
+              <option value="vegetative" selected>Vegetative</option>
+              <option value="flowering">Flowering</option>
+              <option value="fruiting">Fruiting</option>
+            </select>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;font-size:.88rem">
+            <input type="checkbox" id="ir-rain" style="width:auto"/>
+            <label for="ir-rain">🌧️ Rain expected in next 2 days</label>
+          </div>
+          <button class="form-btn" id="ir-btn" onclick="getIrrigAdvice()" style="width:100%">💧 Get Schedule</button>
+        </div>
+        <div>
+          <div class="card" style="margin-bottom:14px">
+            <div class="card-title">💡 Water Saving Tips</div>
+            <div style="font-size:.82rem;display:flex;flex-direction:column;gap:7px">
+              <div>💧 Drip saves <b>40–60%</b> water vs flood irrigation</div>
+              <div>🌅 Irrigate <b>early morning</b> or evening to reduce evaporation</div>
+              <div>🌧️ Skip irrigation if <b>10+ mm rain</b> forecast in 24 hours</div>
+              <div>📊 Sandy soil: every 3–4 days. Clay: every 6–8 days</div>
+              <div>🌱 Critical stages need most water: <b>flowering &amp; fruiting</b></div>
+            </div>
+          </div>
+          <div id="ir-result" style="display:none" class="result-box"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── MARKET PAGE ── -->
+    <div class="page" id="page-market">
+      <div class="page-title">📊 Market Prices & Selling Guide</div>
+      <div class="page-sub">APMC mandi prices for Indian crops — get AI selling advice</div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px">
+        <input class="form-input" id="m-crop" placeholder="Type crop name for AI advice…" style="flex:1;min-width:180px"/>
+        <button class="form-btn" id="m-btn" onclick="getMarketInfo()">📊 Get Market Advice</button>
+      </div>
+      <div style="display:flex;gap:7px;flex-wrap:wrap;margin-bottom:18px">
+        <span class="hint" onclick="setMarket('arecanut')">🌿 Arecanut</span>
+        <span class="hint" onclick="setMarket('coconut')">🥥 Coconut</span>
+        <span class="hint" onclick="setMarket('banana')">🍌 Banana</span>
+        <span class="hint" onclick="setMarket('paddy')">🌾 Paddy</span>
+        <span class="hint" onclick="setMarket('turmeric')">🍂 Turmeric</span>
+        <span class="hint" onclick="setMarket('onion')">🧅 Onion</span>
+        <span class="hint" onclick="setMarket('chilli')">🌶️ Chilli</span>
+        <span class="hint" onclick="setMarket('pepper')">🫒 Pepper</span>
+        <span class="hint" onclick="setMarket('sugarcane')">🎋 Sugarcane</span>
+      </div>
+      <div id="m-result" style="display:none" class="result-box"></div>
+      <div class="card" style="margin-top:16px">
+        <div class="card-title">📋 Indian APMC Mandi Prices (Indicative — 2024)</div>
+        <table style="width:100%;font-size:.85rem;border-collapse:collapse">
+          <thead><tr style="border-bottom:2px solid var(--border);background:var(--green-lt)">
+            <th style="padding:9px 10px;text-align:left;border-radius:8px 0 0 0">Commodity</th>
+            <th style="padding:9px 10px;text-align:left">Market</th>
+            <th style="padding:9px 10px;text-align:right">Min ₹/qt</th>
+            <th style="padding:9px 10px;text-align:right">Max ₹/qt</th>
+            <th style="padding:9px 10px;text-align:right;color:var(--green)">Modal ₹/qt</th>
+          </tr></thead>
+          <tbody id="price-table">
+            <tr><td style="padding:9px 10px;font-weight:700">🌿 Arecanut (Chali)</td><td style="padding:9px 10px;color:var(--muted)">Shivamogga, KA</td><td style="padding:9px 10px;text-align:right">36,000</td><td style="padding:9px 10px;text-align:right">52,000</td><td style="padding:9px 10px;text-align:right;font-weight:800;color:var(--green)">₹42,000</td></tr>
+            <tr style="background:var(--bg)"><td style="padding:9px 10px;font-weight:700">🥥 Coconut Copra</td><td style="padding:9px 10px;color:var(--muted)">Udupi, KA</td><td style="padding:9px 10px;text-align:right">8,500</td><td style="padding:9px 10px;text-align:right">12,000</td><td style="padding:9px 10px;text-align:right;font-weight:800;color:var(--green)">₹10,500</td></tr>
+            <tr><td style="padding:9px 10px;font-weight:700">🍌 Banana G9</td><td style="padding:9px 10px;color:var(--muted)">Hoskote, KA</td><td style="padding:9px 10px;text-align:right">900</td><td style="padding:9px 10px;text-align:right">1,600</td><td style="padding:9px 10px;text-align:right;font-weight:800;color:var(--green)">₹1,200</td></tr>
+            <tr style="background:var(--bg)"><td style="padding:9px 10px;font-weight:700">🌾 Paddy (BPT)</td><td style="padding:9px 10px;color:var(--muted)">Shivamogga</td><td style="padding:9px 10px;text-align:right">2,183</td><td style="padding:9px 10px;text-align:right">2,400</td><td style="padding:9px 10px;text-align:right;font-weight:800;color:var(--green)">₹2,183</td></tr>
+            <tr><td style="padding:9px 10px;font-weight:700">🍂 Turmeric</td><td style="padding:9px 10px;color:var(--muted)">Erode, TN</td><td style="padding:9px 10px;text-align:right">7,000</td><td style="padding:9px 10px;text-align:right">18,000</td><td style="padding:9px 10px;text-align:right;font-weight:800;color:var(--green)">₹12,000</td></tr>
+            <tr style="background:var(--bg)"><td style="padding:9px 10px;font-weight:700">🧅 Onion</td><td style="padding:9px 10px;color:var(--muted)">Nashik, MH</td><td style="padding:9px 10px;text-align:right">1,000</td><td style="padding:9px 10px;text-align:right">2,800</td><td style="padding:9px 10px;text-align:right;font-weight:800;color:var(--green)">₹1,820</td></tr>
+            <tr><td style="padding:9px 10px;font-weight:700">🌶️ Chilli (Teja)</td><td style="padding:9px 10px;color:var(--muted)">Guntur, AP</td><td style="padding:9px 10px;text-align:right">8,000</td><td style="padding:9px 10px;text-align:right">22,000</td><td style="padding:9px 10px;text-align:right;font-weight:800;color:var(--green)">₹14,000</td></tr>
+            <tr style="background:var(--bg)"><td style="padding:9px 10px;font-weight:700">🫒 Black Pepper</td><td style="padding:9px 10px;color:var(--muted)">Kochi, KL</td><td style="padding:9px 10px;text-align:right">40,000</td><td style="padding:9px 10px;text-align:right">65,000</td><td style="padding:9px 10px;text-align:right;font-weight:800;color:var(--green)">₹52,000</td></tr>
+          </tbody>
+        </table>
+        <div style="font-size:.72rem;color:var(--muted);margin-top:10px;padding-top:10px;border-top:1px solid var(--border)">
+          ℹ️ Prices are indicative. Check <b>AGMARKNET (agmarknet.nic.in)</b> or <b>e-NAM</b> for live mandi prices. MSP for paddy: ₹2,183/qt (2023-24).
+        </div>
+      </div>
+    </div>
+
+  </div><!-- end #pages -->
+</div><!-- end #main -->
+
+<script>
+const API = 'http://localhost:8000/api';
+let chatMessages = [];
+let currentSeason = 'kharif';
+
+const TIPS = [
+  'Spray Bordeaux mixture on arecanut before monsoon to prevent Koleroga disease.',
+  'Drip irrigation for coconut in summer: 50–200 litres per palm per week.',
+  'Apply Urea in 3 splits for paddy — never all at once — to reduce N loss.',
+  'Best time to spray pesticides: 6–9 AM or 4–6 PM. Avoid noon and rainy days.',
+  'Test your soil every season. Soil Health Cards are free from the government.',
+  'Apply FYM 2–3 weeks before sowing for best soil improvement.',
+  'Use pheromone traps to detect stem borer, fall armyworm, and bollworm early.',
+  'For banana bunch development, increase potassium (MOP) at shooting stage.',
+  'Turmeric and ginger: Ensure proper drainage. Rhizome rot starts in waterlogged soil.',
+  'PM Krishi Sinchai Yojana gives 45–55% subsidy on drip and sprinkler systems.',
+  'Chilli: Apply boron spray at flowering to improve fruit set and reduce blossom drop.',
+  'E-NAM online platform allows selling to any mandi across India — better prices.',
+  'Kisan Call Centre 1800-180-1551 is free. Call for immediate farming advice.',
+  'Coffee leaf rust: Spray copper oxychloride 3g/L before monsoon as preventive.',
+];
+
+const SEASONS = {
+  kharif:    ['🌾 Paddy','🌽 Maize','🫘 Soybean','🏴 Cotton','🥜 Groundnut','🌿 Bajra','🫛 Arhar','🌾 Jowar','🍂 Turmeric','🫚 Ginger','🌶️ Chilli (transplant)'],
+  rabi:      ['🌾 Wheat','🌿 Barley','🪸 Mustard','🫘 Gram','🌱 Peas','🧅 Onion (Rabi)','🌻 Sunflower','🌾 Jowar','🍚 Paddy (South)'],
+  summer:    ['🌻 Sunflower','🫘 Moong','🍉 Watermelon','🥒 Cucumber','🥬 Vegetables','🎃 Pumpkin','🌽 Sweet Corn','🍋 Lemon'],
+  plantation:['🌿 Arecanut','🥥 Coconut','☕ Coffee','🫒 Pepper','🍌 Banana','🥭 Mango','🍂 Turmeric','🫚 Ginger'],
+};
+
+// ── Init ──────────────────────────────────────────────────────
+window.onload = () => {
+  // Greeting
+  const now = new Date();
+  const h = now.getHours();
+  document.getElementById('greet-msg').textContent = (h<12?'🌅 Good Morning, Kisan!':h<17?'🌞 Good Afternoon, Kisan!':'🌙 Good Evening, Kisan!');
+  document.getElementById('greet-date').textContent = now.toLocaleDateString('en-IN',{day:'2-digit',month:'short'});
+  document.getElementById('greet-day').textContent = now.toLocaleDateString('en-IN',{weekday:'long',year:'numeric'});
+
+  // Tip rotation
+  let ti = 0;
+  document.getElementById('tip-text').textContent = TIPS[ti];
+  setInterval(() => { ti = (ti+1)%TIPS.length; document.getElementById('tip-text').textContent = TIPS[ti]; }, 6000);
+
+  // Season
+  setSeason('kharif');
+
+  // Date on dashboard
+  const m = now.getMonth()+1;
+  document.getElementById('dash-season').textContent = m>=6&&m<=10?'🌧️ Kharif':m>=11||m<=3?'❄️ Rabi':'☀️ Summer';
+  document.getElementById('dash-month').textContent = now.toLocaleDateString('en-IN',{month:'long',year:'numeric'});
+
+  // Check API status
+  checkStatus();
+
+  // Auto-resize textarea
+  const ta = document.getElementById('msg-input');
+  ta.addEventListener('input', () => { ta.style.height='auto'; ta.style.height=Math.min(ta.scrollHeight,120)+'px'; });
+  ta.addEventListener('keydown', e => { if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendMessage();} });
+};
+
+function checkStatus() {
+  fetch(API+'/status').then(r=>r.json()).then(d=>{
+    setStatus('ibm-dot','ibm-status', d.ibm_key);
+  }).catch(()=>{
+    setStatus('ibm-dot','ibm-status','⚠️ Backend offline');
+  });
+}
+function setStatus(dotId, textId, msg) {
+  const dot = document.getElementById(dotId);
+  document.getElementById(textId).textContent = msg;
+  dot.className = 'status-dot ' + (msg.startsWith('✅') ? 'ok' : 'warn');
+}
+
+// ── Navigation ────────────────────────────────────────────────
+function showPage(id) {
+  document.querySelectorAll('.page').forEach(p => { p.classList.remove('active'); p.style.display=''; });
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+
+  const page = document.getElementById('page-'+id);
+  if (id === 'chat') { page.style.display='flex'; page.classList.add('active'); }
+  else { page.classList.add('active'); }
+
+  const titles = {dashboard:'🏠 Dashboard',chat:'🤖 AI Chat',crops:'🌾 Crop Advisor',soil:'🪱 Soil Analysis',pests:'🐛 Pest & Disease',fertilizer:'🧪 Fertilizer',irrigation:'💧 Irrigation',market:'📊 Market Prices'};
+  document.getElementById('topbar-title').textContent = titles[id] || id;
+
+  document.querySelectorAll('.nav-btn').forEach(b => {
+    if(b.getAttribute('onclick')===`showPage('${id}')`) b.classList.add('active');
+  });
+  closeSidebar();
+}
+
+function toggleSidebar() {
+  document.getElementById('sidebar').classList.toggle('open');
+  document.getElementById('overlay').style.display = document.getElementById('sidebar').classList.contains('open') ? 'block' : 'none';
+}
+function closeSidebar() {
+  document.getElementById('sidebar').classList.remove('open');
+  document.getElementById('overlay').style.display = 'none';
+}
+
+// ── Chat ──────────────────────────────────────────────────────
+function sendQuick(el) { sendMessage(el.textContent.replace(/^[\p{Emoji}\s]+/u,'').trim()); }
+function setInput(txt) { const ta=document.getElementById('msg-input'); ta.value=txt; ta.focus(); }
+
+async function sendMessage(text) {
+  const ta = document.getElementById('msg-input');
+  const msg = (text || ta.value).trim();
+  if (!msg) return;
+  ta.value = ''; ta.style.height = 'auto';
+
+  // Hide welcome
+  document.getElementById('chat-welcome').style.display = 'none';
+
+  addBubble('user', msg);
+  const typingEl = addTyping();
+  setBtnLoading('send-btn', true);
+
+  try {
+    const res = await fetch(API+'/chat', {
+      method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({message:msg})
+    });
+    const data = await res.json();
+    typingEl.remove();
+    addBubble('ai', data.reply || 'Sorry, I could not get a response.');
+  } catch(e) {
+    typingEl.remove();
+    addBubble('ai', '⚠️ **Could not reach backend.**\n\nMake sure you ran:\n```\npip install fastapi uvicorn python-dotenv httpx\npython main.py\n```');
+  } finally {
+    setBtnLoading('send-btn', false);
+  }
+}
+
+function addBubble(role, text) {
+  const msgs = document.getElementById('chat-messages');
+  const row = document.createElement('div');
+  row.className = `msg-row ${role}`;
+  row.innerHTML = `
+    <div class="msg-av ${role}">${role==='ai'?'🌿':'👤'}</div>
+    <div class="bubble">${formatText(text)}</div>`;
+  msgs.appendChild(row);
+  msgs.scrollTop = msgs.scrollHeight;
+  return row;
+}
+
+function addTyping() {
+  const msgs = document.getElementById('chat-messages');
+  const row = document.createElement('div');
+  row.className = 'msg-row ai';
+  row.innerHTML = `<div class="msg-av ai">🌿</div><div class="typing"><div class="td"></div><div class="td"></div><div class="td"></div></div>`;
+  msgs.appendChild(row);
+  msgs.scrollTop = msgs.scrollHeight;
+  return row;
+}
+
+function clearChat() {
+  const msgs = document.getElementById('chat-messages');
+  msgs.innerHTML = '';
+  document.getElementById('chat-welcome').style.display = 'flex';
+  msgs.appendChild(document.getElementById('chat-welcome'));
+}
+
+function formatText(t) {
+  return t
+    .replace(/\*\*(.+?)\*\*/g,'<b>$1</b>')
+    .replace(/\*(.+?)\*/g,'<i>$1</i>')
+    .replace(/`([^`]+)`/g,'<code style="background:#f3f4f6;padding:1px 4px;border-radius:3px;font-size:.85em">$1</code>')
+    .replace(/\n• /g,'<br>• ')
+    .replace(/\n/g,'<br>');
+}
+
+function setBtnLoading(id, on) {
+  const btn = document.getElementById(id);
+  btn.disabled = on;
+  if(id !== 'send-btn') btn.textContent = on ? '⏳ Loading…' : btn.getAttribute('data-label') || btn.textContent;
+}
+
+// ── Crop Advisor ───────────────────────────────────────────────
+function setSeason(s) {
+  currentSeason = s;
+  ['kharif','rabi','summer','plantation'].forEach(x => {
+    const btn = document.getElementById(x+'-btn');
+    if (btn) btn.style.opacity = x===s ? '1' : '0.55';
+  });
+  document.getElementById('season-label').textContent = s.charAt(0).toUpperCase()+s.slice(1);
+  document.getElementById('season-crops').innerHTML = (SEASONS[s]||[]).map(c =>
+    `<span style="padding:7px 12px;background:var(--green-lt);border:1px solid #b2dfb8;border-radius:14px;color:var(--green);font-weight:700">${c}</span>`
+  ).join('');
+}
+
+async function getCropAdvice() {
+  const state  = document.getElementById('cr-state').value;
+  const soil   = document.getElementById('cr-soil').value;
+  const water  = document.getElementById('cr-water').value;
+  if (!state && !soil) { alert('Please select at least a State or Soil Type'); return; }
+  const seasonLabel = {kharif:'Kharif (June–October)',rabi:'Rabi (November–March)',summer:'Summer/Zaid (April–June)',plantation:'Plantation (perennial)'}[currentSeason] || currentSeason;
+  const msg = `CROP RECOMMENDATION REQUEST — please recommend best crops to grow.
+Season: ${seasonLabel}
+State: ${state || 'Not specified'}
+Soil type: ${soil || 'Not specified'}
+Water availability: ${water}
+List 5-6 best crops for this season and region. For each crop include: expected yield, market price, and one key tip. Focus on Indian regional crops like arecanut, coconut, paddy, banana, turmeric, ginger, chilli, coffee, pepper based on the state.`;
+  await callAI('cr-btn','cr-result', msg);
+}
+
+// ── Soil ───────────────────────────────────────────────────────
+const _soilLevels = { n:'', p:'', k:'', oc:'' };
+
+function pickLevel(nutrient, level) {
+  _soilLevels[nutrient] = (_soilLevels[nutrient] === level) ? '' : level;
+  ['low','medium','high'].forEach(lvl => {
+    const btn = document.getElementById(nutrient+'-'+lvl);
+    if (!btn) return;
+    const active = _soilLevels[nutrient] === lvl;
+    const bg    = {low:'#fef2f2', medium:'#fffbeb', high:'#f0fdf4'}[lvl];
+    const color = {low:'#dc2626', medium:'#d97706', high:'#16a34a'}[lvl];
+    btn.style.background  = active ? bg    : '';
+    btn.style.borderColor = active ? color : '';
+    btn.style.color       = active ? color : '';
+  });
+}
+
+function updatePH(v) {
+  const lbl = document.getElementById('ph-label');
+  const val = document.getElementById('ph-val');
+  const n = +v;
+  const color = n < 5.5 ? '#dc2626' : n > 7.5 ? '#d97706' : '#16a34a';
+  const text  = n < 5.5 ? '— Acidic (apply lime)' : n > 7.5 ? '— Alkaline (apply gypsum)' : '— Optimal ✅';
+  lbl.textContent = text; lbl.style.color = color;
+  if (val) { val.textContent = 'pH ' + v; val.style.color = color; }
+}
+
+async function getSoilAdvice() {
+  const ph    = document.getElementById('s-ph').value;
+  const type  = document.getElementById('s-type').value;
+  const state = document.getElementById('s-state') ? document.getElementById('s-state').value : '';
+  const nLvl  = _soilLevels.n;
+  const pLvl  = _soilLevels.p;
+  const kLvl  = _soilLevels.k;
+  const ocLvl = _soilLevels.oc;
+  const nVal  = {low:200, medium:400, high:600}[nLvl];
+  const pVal  = {low:6,   medium:17,  high:30 }[pLvl];
+  const kVal  = {low:80,  medium:190, high:320}[kLvl];
+  const ocVal = {low:0.3, medium:0.6, high:0.9}[ocLvl];
+  const msg = `SOIL ANALYSIS REQUEST — analyze this soil information and give crop and fertilizer recommendations.
+Soil pH: ${ph || '6.5'} ${+ph<5.5?'(Acidic)':+ph>7.5?'(Alkaline)':'(Optimal)'}
+Nitrogen (N): ${nLvl ? nLvl+' ('+nVal+' kg/ha)' : 'not provided'}
+Phosphorus (P): ${pLvl ? pLvl+' ('+pVal+' kg/ha)' : 'not provided'}
+Potassium (K): ${kLvl ? kLvl+' ('+kVal+' kg/ha)' : 'not provided'}
+Organic Carbon: ${ocLvl ? ocLvl+' ('+ocVal+'%)' : 'not provided'}
+Soil type: ${type || 'not specified'}
+State: ${state || 'not specified'}
+Give: (1) pH correction if needed (lime or gypsum, exact quantity). (2) Fertilizer to add for each low nutrient. (3) Best crops for this soil. (4) Simple practical first steps for the farmer.`;
+  await callAI('s-btn','s-result', msg);
+}
+
+// ── Pests ──────────────────────────────────────────────────────
+function fillPest(crop, sym) {
+  document.getElementById('p-crop').value = crop;
+  document.getElementById('p-sym').value  = sym;
+}
+async function getPestAdvice() {
+  const crop = document.getElementById('p-crop').value;
+  const sym  = document.getElementById('p-sym').value;
+  if(!sym) { alert('Please describe the symptoms you see on the crop'); return; }
+  const msg = `Indian farmer problem${crop?' with '+crop:''}. Symptoms observed: ${sym}. Please: (1) Identify the likely pest or disease name. (2) Suggest organic treatment options. (3) Suggest chemical treatment with product names and dosages. (4) Give preventive measures for next season. (5) Safety precautions when applying chemicals.`;
+  await callAI('p-btn','p-result', msg);
+}
+
+// ── Fertilizer ─────────────────────────────────────────────────
+async function getFertAdvice() {
+  const crop  = document.getElementById('f-crop').value;
+  const stage = document.getElementById('f-stage').value;
+  const area  = document.getElementById('f-area').value;
+  if(!crop) { alert('Please select a crop first'); return; }
+  const msg = `Fertilizer recommendation for ${crop} at ${stage} stage for an Indian farmer. Farm area: ${area} acres. Give: (1) NPK requirement (kg/ha and per acre). (2) Specific fertilizer names and quantities (Urea, DAP, SSP, MOP). (3) Application timing and method. (4) Micronutrient requirements if any. (5) Organic alternatives like FYM or vermicompost.`;
+  await callAI('f-btn','f-result', msg);
+}
+
+// ── Irrigation ─────────────────────────────────────────────────
+async function getIrrigAdvice() {
+  const crop  = document.getElementById('ir-crop').value;
+  const type  = document.getElementById('ir-type').value;
+  const stage = document.getElementById('ir-stage').value;
+  const rain  = document.getElementById('ir-rain').checked;
+  if(!crop) { alert('Please enter the crop name'); return; }
+  const msg = `Irrigation schedule for ${crop} (Indian farmer) using ${type} irrigation at ${stage} growth stage.${rain?' Rain is expected in the next 2 days.':''} Give: (1) Water quantity per irrigation (litres per plant or mm per hectare). (2) Frequency of irrigation. (3) Best time of day to irrigate. (4) Critical growth stages needing more water. (5) Water-saving tips for this crop.`;
+  await callAI('ir-btn','ir-result', msg);
+}
+
+// ── Market ─────────────────────────────────────────────────────
+function setMarket(crop) {
+  document.getElementById('m-crop').value = crop;
+  getMarketInfo();
+}
+async function getMarketInfo() {
+  const crop = document.getElementById('m-crop').value;
+  if(!crop) { alert('Please enter a crop name'); return; }
+  const msg = `What are the current mandi/APMC prices for ${crop} in India? Include: (1) Price range (min/max/modal). (2) Best markets/mandis to sell. (3) Best time/season to sell. (4) Quality grading that affects price. (5) Value addition or processing options. (6) MSP if applicable.`;
+  await callAI('m-btn','m-result', msg);
+}
+
+// ── Shared AI call ─────────────────────────────────────────────
+async function callAI(btnId, resultId, message) {
+  const btn    = document.getElementById(btnId);
+  const result = document.getElementById(resultId);
+  const orig   = btn.textContent;
+  btn.disabled = true; btn.textContent = '⏳ Getting AI advice…';
+  result.style.display = 'none';
+  try {
+    const res  = await fetch(API+'/chat', {
+      method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({message})
+    });
+    const data = await res.json();
+    result.style.display = 'block';
+    result.innerHTML = '<h4>🤖 Kisan AI Recommendation</h4>' + formatText(data.reply || 'No response from AI. Check backend.');
+  } catch(e) {
+    result.style.display = 'block';
+    result.innerHTML = '<h4>⚠️ Backend not running</h4>Run: <code>python main.py</code> in the backend folder.';
+  } finally {
+    btn.disabled = false; btn.textContent = orig;
+  }
+}
+</script>
+</body>
+</html>

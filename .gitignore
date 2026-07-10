@@ -1,0 +1,33 @@
+﻿# Secrets - NEVER commit
+backend/.env
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+backend/venv/
+venv/
+.venv/
+*.egg-info/
+dist/
+build/
+
+# Database / ChromaDB
+backend/data/chroma_db/
+backend/data/embeddings/
+*.db
+*.sqlite3
+
+# Node / React
+frontend/node_modules/
+frontend/build/
+frontend/.env
+npm-debug.log*
+
+# OS / Editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+*.log
