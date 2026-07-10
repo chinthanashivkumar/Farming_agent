@@ -349,13 +349,10 @@ body{font-family:-apple-system,"Segoe UI",system-ui,"Noto Sans Devanagari",sans-
     <!-- Language selector -->
     <div style="padding:0 4px 10px">
       <div style="font-size:.6rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:rgba(255,255,255,.4);margin-bottom:6px;padding-left:4px">🌐 Language</div>
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:4px" id="lang-btns">
-        <button class="lang-btn active" onclick="setLang('en')"  id="lb-en">EN</button>
-        <button class="lang-btn"        onclick="setLang('hi')"  id="lb-hi">हिं</button>
-        <button class="lang-btn"        onclick="setLang('kn')"  id="lb-kn">ಕನ್ನ</button>
-        <button class="lang-btn"        onclick="setLang('ta')"  id="lb-ta">தமி</button>
-        <button class="lang-btn"        onclick="setLang('te')"  id="lb-te">తెలు</button>
-        <button class="lang-btn"        onclick="setLang('mr')"  id="lb-mr">मरा</button>
+      <div style="display:flex;flex-direction:column;gap:5px" id="lang-btns">
+        <button class="lang-btn active" onclick="setLang('en')" id="lb-en" style="font-size:.85rem;padding:9px 0;letter-spacing:.05em">EN &nbsp;English</button>
+        <button class="lang-btn"        onclick="setLang('hi')" id="lb-hi" style="font-size:.85rem;padding:9px 0">हिं &nbsp;हिन्दी</button>
+        <button class="lang-btn"        onclick="setLang('kn')" id="lb-kn" style="font-size:.85rem;padding:9px 0">ಕ &nbsp;ಕನ್ನಡ</button>
       </div>
     </div>
     <div class="status-pill">
@@ -1191,40 +1188,29 @@ async function callAI(btnId, resultId, message) {
   }
 }
 
-// ── Language & Voice ──────────────────────────────────────────
-const LANG_NAMES = {
-  en: 'English', hi: 'Hindi', kn: 'Kannada', ta: 'Tamil', te: 'Telugu', mr: 'Marathi'
-};
-const LANG_VOICE = {
-  en: 'en-IN', hi: 'hi-IN', kn: 'kn-IN', ta: 'ta-IN', te: 'te-IN', mr: 'mr-IN'
-};
+// ── Language (3 only: EN / Hindi / Kannada) ──────────────────
 const LANG_INSTRUCTION = {
   en: '',
   hi: 'Please reply in Hindi (हिंदी में जवाब दें).',
   kn: 'Please reply in Kannada (ಕನ್ನಡದಲ್ಲಿ ಉತ್ತರಿಸಿ).',
-  ta: 'Please reply in Tamil (தமிழில் பதில் சொல்லுங்கள்).',
-  te: 'Please reply in Telugu (తెలుగులో సమాధానం చెప్పండి).',
-  mr: 'Please reply in Marathi (मराठीत उत्तर द्या).',
 };
 
 let currentLang = localStorage.getItem('kisanLang') || 'en';
+if (!['en','hi','kn'].includes(currentLang)) currentLang = 'en';
 
 function setLang(code) {
+  if (!['en','hi','kn'].includes(code)) code = 'en';
   currentLang = code;
   localStorage.setItem('kisanLang', code);
-  // Update button styles
   document.querySelectorAll('.lang-btn').forEach(b => b.classList.remove('active'));
   const btn = document.getElementById('lb-' + code);
   if (btn) btn.classList.add('active');
-  // Update mic language (only if currently recording; otherwise it picks up on next start)
-  if (_recog && _recogActive) _recog.lang = LANG_VOICE[code] || 'en-IN';
-  // Show toast
-  const names = {en:'English',hi:'हिन्दी',kn:'ಕನ್ನಡ',ta:'தமிழ்',te:'తెలుగు',mr:'मराठी'};
+  const names = {en:'English', hi:'हिन्दी', kn:'ಕನ್ನಡ'};
   const toast = document.createElement('div');
-  toast.textContent = '🌐 Language: ' + (names[code] || code);
-  toast.style.cssText = 'position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#1b5226;color:#fff;padding:10px 20px;border-radius:20px;font-size:.88rem;font-weight:700;z-index:9999;box-shadow:0 4px 16px rgba(0,0,0,.25)';
+  toast.textContent = 'Language: ' + (names[code] || code);
+  toast.style.cssText = 'position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#1b5226;color:#fff;padding:10px 22px;border-radius:20px;font-size:.88rem;font-weight:700;z-index:9999;box-shadow:0 4px 16px rgba(0,0,0,.25)';
   document.body.appendChild(toast);
-  setTimeout(() => toast.remove(), 2200);
+  setTimeout(() => toast.remove(), 2000);
 }
 
 // Initialise active lang button on load
@@ -1317,100 +1303,111 @@ function _resetMic() {
 }
 
 function toggleVoice() {
-  // ── Stop if recording ──────────────────────────────────────
+  const ta  = document.getElementById('msg-input');
+  const btn = document.getElementById('mic-btn');
+  const PH  = 'Ask about arecanut, coconut, paddy, banana, turmeric… (Enter to send)';
+
+  // ── STOP: user tapped the ⏹ button ─────────────────────────
   if (_recogActive) {
     _micStopped = true;
-    if (_recog) { try { _recog.abort(); } catch(_){} _recog = null; }
-    _resetMic();
-    const ta = document.getElementById('msg-input');
-    if (ta) ta.value = '';
-    const old = document.getElementById('_vt'); if (old) old.remove();
+    if (_recog) {
+      try { _recog.stop(); } catch(_){}   // stop() → triggers onresult with final, then onend
+    }
+    // onend will handle sending the transcript
     return;
   }
 
-  // ── Browser check ──────────────────────────────────────────
+  // ── Browser support ────────────────────────────────────────
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if (!SR) { _voiceToast('Voice not supported — use Chrome or Edge', '#dc2626'); return; }
+  if (!SR) {
+    _voiceToast('Voice input needs Chrome or Edge browser', '#dc2626');
+    return;
+  }
 
-  // ── Clean up any leftover instance ────────────────────────
+  // ── Clean up stale instance ────────────────────────────────
   if (_recog) { try { _recog.abort(); } catch(_){} _recog = null; }
 
-  const ta   = document.getElementById('msg-input');
-  const btn  = document.getElementById('mic-btn');
   _accumulated = '';
   _micStopped  = false;
 
   _recog = new SR();
-  _recog.lang           = 'en-IN';
-  _recog.continuous     = false;   // single utterance mode
-  _recog.interimResults = true;    // live preview
+  _recog.lang            = 'en-IN';   // English recognition — farm terms work best
+  _recog.continuous      = true;      // keep listening until user taps stop
+  _recog.interimResults  = true;      // show live preview as user speaks
   _recog.maxAlternatives = 1;
 
-  // ── onstart ───────────────────────────────────────────────
+  // ── onstart ────────────────────────────────────────────────
   _recog.onstart = () => {
     _recogActive = true;
     btn.classList.add('recording');
     btn.textContent = '⏹';
-    btn.title = 'Listening — tap to stop';
+    btn.title = 'Tap to stop recording';
     ta.value = '';
-    ta.placeholder = 'Listening…';
-    _voiceToast('Listening… speak now', '#1b5226');
+    ta.placeholder = 'Listening… speak your question';
+    _voiceToast('Listening… speak now. Tap ⏹ when done.', '#1b5226');
   };
 
-  // ── onresult — accumulate properly ────────────────────────
+  // ── onresult — build transcript from all results ──────────
   _recog.onresult = (e) => {
-    let interim = '';
-    // Accumulate ALL final results (index 0 to resultIndex)
+    let finalText   = '';
+    let interimText = '';
     for (let i = 0; i < e.results.length; i++) {
-      if (e.results[i].isFinal) {
-        _accumulated = e.results[i][0].transcript;  // single-utterance: only one final
-      } else {
-        interim = e.results[i][0].transcript;
-      }
+      const t = e.results[i][0].transcript;
+      if (e.results[i].isFinal) { finalText   += t + ' '; }
+      else                       { interimText += t; }
     }
-    // Show whatever we have — final takes priority
-    ta.value = _accumulated || interim;
+    _accumulated = finalText.trim();
+    // Show final text if available, else show interim preview
+    ta.value = _accumulated || interimText;
   };
 
   // ── onerror ────────────────────────────────────────────────
   _recog.onerror = (e) => {
-    if (e.error === 'aborted' || e.error === 'no-speech') {
-      if (e.error === 'no-speech') _voiceToast('No speech heard — try again', '#d97706');
-      _resetMic();
-      ta.placeholder = 'Ask about arecanut, coconut, paddy, banana, turmeric… (Enter to send)';
-      return;
+    const silent = ['aborted', 'no-speech'];
+    if (!silent.includes(e.error)) {
+      const msgs = {
+        'not-allowed':        'Microphone blocked — click the mic icon in your browser address bar and allow',
+        'service-not-allowed':'Microphone blocked — allow mic permission in browser settings',
+        'network':            'Network error — check your internet connection',
+        'audio-capture':      'No microphone found — plug in a mic and try again',
+      };
+      _voiceToast(msgs[e.error] || ('Voice error: ' + e.error), '#dc2626');
     }
-    const msgs = {
-      'not-allowed':       'Microphone blocked — allow mic in browser settings',
-      'service-not-allowed':'Microphone blocked — allow mic in browser settings',
-      'network':           'Network error — check internet connection',
-      'audio-capture':     'No microphone found — plug in a mic',
-    };
-    _voiceToast(msgs[e.error] || ('Voice error: ' + e.error), '#dc2626');
     _resetMic();
-    ta.placeholder = 'Ask about arecanut, coconut, paddy, banana, turmeric… (Enter to send)';
+    ta.placeholder = PH;
   };
 
-  // ── onend — fires after recognition completes ──────────────
+  // ── onend — fires after stop() is called ──────────────────
   _recog.onend = () => {
     _resetMic();
-    ta.placeholder = 'Ask about arecanut, coconut, paddy, banana, turmeric… (Enter to send)';
-    if (_micStopped) return;           // user tapped stop — do nothing
+    ta.placeholder = PH;
+    // When user tapped stop → send whatever was captured
+    if (_micStopped) {
+      const text = _accumulated.trim() || ta.value.trim();
+      if (text) {
+        ta.value = text;
+        ta.focus();
+        _voiceToast('Got it! Sending…', '#1b5226');
+        setTimeout(() => sendMessage(), 400);
+      } else {
+        _voiceToast('Nothing captured — tap mic and speak clearly', '#d97706');
+      }
+      return;
+    }
+    // Auto-ended (browser timeout) → also send if we have text
     const text = _accumulated.trim() || ta.value.trim();
     if (text) {
       ta.value = text;
       ta.focus();
-      setTimeout(() => sendMessage(), 600);  // brief pause so user sees transcript
-    } else {
-      _voiceToast('Nothing captured — tap mic and speak clearly', '#d97706');
+      setTimeout(() => sendMessage(), 400);
     }
   };
 
   // ── start ─────────────────────────────────────────────────
   try {
     _recog.start();
-  } catch(e) {
-    _voiceToast('Could not start mic: ' + e.message, '#dc2626');
+  } catch (err) {
+    _voiceToast('Could not start microphone: ' + err.message, '#dc2626');
     _resetMic();
   }
 }
