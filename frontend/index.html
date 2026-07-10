@@ -962,18 +962,16 @@ async function sendMessage(text) {
   if (!rawMsg) return;
   ta.value = ''; ta.style.height = 'auto';
 
-  // Add language instruction to what we send to backend
-  const instr = (typeof LANG_INSTRUCTION !== 'undefined') ? LANG_INSTRUCTION[currentLang] : '';
-  const apiMsg = instr ? rawMsg + '\n[' + instr + ']' : rawMsg;
-
   document.getElementById('chat-welcome').style.display = 'none';
   addBubble('user', rawMsg);
   const typingEl = addTyping();
   setBtnLoading('send-btn', true);
 
   try {
+    // Send message + language code — backend translates response to selected language
     const res = await fetch(API+'/chat', {
-      method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({message:apiMsg})
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ message: rawMsg, language: currentLang })
     });
     const data = await res.json();
     typingEl.remove();
@@ -1254,15 +1252,17 @@ function speakText(btn) {
   const text = _cleanForSpeech(raw);
   if (!text) return;
 
+  const ttsLangMap = { en: 'en-IN', hi: 'hi-IN', kn: 'kn-IN' };
+  const ttsLang    = ttsLangMap[currentLang] || 'en-IN';
   const utt = new SpeechSynthesisUtterance(text);
-  utt.lang  = 'en-IN';
+  utt.lang  = ttsLang;
   utt.rate  = 0.85;
   utt.pitch = 1.0;
 
   function _doSpeak() {
     const voices = window.speechSynthesis.getVoices();
-    const prefer = voices.find(v => v.lang === 'en-IN')
-                || voices.find(v => v.lang === 'en-GB')
+    const prefer = voices.find(v => v.lang === ttsLang)
+                || voices.find(v => v.lang.startsWith(ttsLang.split('-')[0]))
                 || voices.find(v => v.lang.startsWith('en'))
                 || null;
     if (prefer) utt.voice = prefer;
@@ -1331,7 +1331,9 @@ function toggleVoice() {
   _micStopped  = false;
 
   _recog = new SR();
-  _recog.lang            = 'en-IN';   // English recognition — farm terms work best
+  // Use the selected UI language for speech recognition
+  const langMap = { en: 'en-IN', hi: 'hi-IN', kn: 'kn' };
+  _recog.lang            = langMap[currentLang] || 'en-IN';
   _recog.continuous      = true;      // keep listening until user taps stop
   _recog.interimResults  = true;      // show live preview as user speaks
   _recog.maxAlternatives = 1;
