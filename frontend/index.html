@@ -245,6 +245,34 @@ body{font-family:-apple-system,"Segoe UI",system-ui,"Noto Sans Devanagari",sans-
 }
 .form-btn:hover{opacity:.9;transform:translateY(-1px);box-shadow:0 4px 14px rgba(27,82,38,.35)}
 .form-btn:active{transform:scale(.97);opacity:1}
+
+/* Language buttons in sidebar */
+.lang-btn{
+  padding:5px 2px;border-radius:8px;border:1px solid rgba(255,255,255,.2);
+  background:rgba(255,255,255,.08);color:rgba(255,255,255,.7);
+  font-size:.72rem;font-weight:700;cursor:pointer;font-family:inherit;
+  transition:all .15s;text-align:center;
+}
+.lang-btn:hover{background:rgba(255,255,255,.18);color:#fff}
+.lang-btn.active{background:var(--green-mid);border-color:var(--green-mid);color:#fff;box-shadow:0 2px 6px rgba(0,0,0,.2)}
+
+/* Mic button */
+#mic-btn{
+  width:38px;height:38px;border-radius:10px;border:1.5px solid var(--border);
+  background:var(--white);font-size:1rem;cursor:pointer;flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;transition:all .15s;
+}
+#mic-btn:hover{background:var(--green-lt);border-color:var(--green)}
+#mic-btn.recording{background:#fee2e2;border-color:#dc2626;animation:mic-pulse 1s infinite}
+@keyframes mic-pulse{0%,100%{box-shadow:0 0 0 0 rgba(220,38,38,.4)}50%{box-shadow:0 0 0 6px rgba(220,38,38,0)}}
+
+/* Speak button on AI bubble */
+.speak-btn{
+  background:none;border:none;cursor:pointer;font-size:.85rem;padding:2px 5px;
+  border-radius:6px;color:var(--muted);margin-left:4px;transition:background .1s;
+}
+.speak-btn:hover{background:var(--green-lt)}
+
 .lvl-btn{
   padding:8px 4px;border-radius:10px;border:2px solid var(--border);
   background:var(--white);color:var(--muted);font-family:inherit;font-weight:700;font-size:.82rem;
@@ -318,6 +346,18 @@ body{font-family:-apple-system,"Segoe UI",system-ui,"Noto Sans Devanagari",sans-
     <button class="nav-btn" onclick="showPage('market')"><span class="nav-icon">📊</span><span class="nav-label">Market Prices</span></button>
   </nav>
   <div class="sidebar-bottom">
+    <!-- Language selector -->
+    <div style="padding:0 4px 10px">
+      <div style="font-size:.6rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:rgba(255,255,255,.4);margin-bottom:6px;padding-left:4px">🌐 Language</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:4px" id="lang-btns">
+        <button class="lang-btn active" onclick="setLang('en')"  id="lb-en">EN</button>
+        <button class="lang-btn"        onclick="setLang('hi')"  id="lb-hi">हिं</button>
+        <button class="lang-btn"        onclick="setLang('kn')"  id="lb-kn">ಕನ್ನ</button>
+        <button class="lang-btn"        onclick="setLang('ta')"  id="lb-ta">தமி</button>
+        <button class="lang-btn"        onclick="setLang('te')"  id="lb-te">తెలు</button>
+        <button class="lang-btn"        onclick="setLang('mr')"  id="lb-mr">मरा</button>
+      </div>
+    </div>
     <div class="status-pill">
       <div class="status-dot warn" id="ibm-dot"></div>
       <div class="status-text" id="ibm-status">IBM Granite AI…</div>
@@ -429,6 +469,7 @@ body{font-family:-apple-system,"Segoe UI",system-ui,"Noto Sans Devanagari",sans-
 
       <div id="chat-input-area">
         <div id="input-row">
+          <button id="mic-btn" onclick="toggleVoice()" title="Voice input">🎤</button>
           <textarea id="msg-input" placeholder="Ask about arecanut, coconut, paddy, banana, turmeric… (Enter to send)" rows="1"></textarea>
           <button id="send-btn" onclick="sendMessage()">➤</button>
         </div>
@@ -1135,6 +1176,167 @@ async function callAI(btnId, resultId, message) {
   } finally {
     btn.disabled = false; btn.textContent = orig;
   }
+}
+
+// ── Language & Voice ──────────────────────────────────────────
+const LANG_NAMES = {
+  en: 'English', hi: 'Hindi', kn: 'Kannada', ta: 'Tamil', te: 'Telugu', mr: 'Marathi'
+};
+const LANG_VOICE = {
+  en: 'en-IN', hi: 'hi-IN', kn: 'kn-IN', ta: 'ta-IN', te: 'te-IN', mr: 'mr-IN'
+};
+const LANG_INSTRUCTION = {
+  en: '',
+  hi: 'Please reply in Hindi (हिंदी में जवाब दें).',
+  kn: 'Please reply in Kannada (ಕನ್ನಡದಲ್ಲಿ ಉತ್ತರಿಸಿ).',
+  ta: 'Please reply in Tamil (தமிழில் பதில் சொல்லுங்கள்).',
+  te: 'Please reply in Telugu (తెలుగులో సమాధానం చెప్పండి).',
+  mr: 'Please reply in Marathi (मराठीत उत्तर द्या).',
+};
+
+let currentLang = localStorage.getItem('kisanLang') || 'en';
+
+function setLang(code) {
+  currentLang = code;
+  localStorage.setItem('kisanLang', code);
+  // Update button styles
+  document.querySelectorAll('.lang-btn').forEach(b => b.classList.remove('active'));
+  const btn = document.getElementById('lb-' + code);
+  if (btn) btn.classList.add('active');
+  // Update mic speech recognition language
+  if (_recog) _recog.lang = LANG_VOICE[code] || 'en-IN';
+  // Show toast
+  const names = {en:'English',hi:'हिन्दी',kn:'ಕನ್ನಡ',ta:'தமிழ்',te:'తెలుగు',mr:'मराठी'};
+  const toast = document.createElement('div');
+  toast.textContent = '🌐 Language: ' + (names[code] || code);
+  toast.style.cssText = 'position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#1b5226;color:#fff;padding:10px 20px;border-radius:20px;font-size:.88rem;font-weight:700;z-index:9999;box-shadow:0 4px 16px rgba(0,0,0,.25)';
+  document.body.appendChild(toast);
+  setTimeout(() => toast.remove(), 2200);
+}
+
+// Initialise active lang button on load
+window.addEventListener('DOMContentLoaded', () => {
+  const saved = localStorage.getItem('kisanLang') || 'en';
+  setLang(saved);
+});
+
+// Override sendMessage to prepend language instruction
+const _origSendMessage = sendMessage;
+async function sendMessage(text) {
+  const ta = document.getElementById('msg-input');
+  let msg = (text || ta.value).trim();
+  if (!msg) return;
+  const instr = LANG_INSTRUCTION[currentLang];
+  const apiMsg = instr ? msg + '\n[' + instr + ']' : msg;
+  // Temporarily replace textarea value so addBubble shows clean user text
+  ta.value = msg;
+  // Call original but intercept the fetch
+  ta.value = ''; ta.style.height = 'auto';
+  document.getElementById('chat-welcome').style.display = 'none';
+  addBubble('user', msg);
+  const typingEl = addTyping();
+  setBtnLoading('send-btn', true);
+  try {
+    const res = await fetch(API + '/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: apiMsg })
+    });
+    const data = await res.json();
+    typingEl.remove();
+    const reply = data.reply || 'Sorry, no response.';
+    addBubble('ai', reply, true);  // true = add speak button
+  } catch(e) {
+    typingEl.remove();
+    addBubble('ai', '⚠️ **Could not reach backend.**\n\nMake sure you ran:\n```\npython main.py\n```');
+  } finally {
+    setBtnLoading('send-btn', false);
+  }
+}
+
+// Override addBubble to support speak button on AI replies
+const _origAddBubble = addBubble;
+function addBubble(role, text, withSpeak) {
+  const msgs = document.getElementById('chat-messages');
+  const row = document.createElement('div');
+  row.className = 'msg-row ' + role;
+  const speakBtn = (role === 'ai' && withSpeak)
+    ? `<button class="speak-btn" onclick="speakText(this)" data-text="${text.replace(/"/g,'&quot;').replace(/\*/g,'')}" title="Listen">🔊</button>`
+    : '';
+  row.innerHTML = `
+    <div class="msg-av ${role}">${role === 'ai' ? '🌿' : '👤'}</div>
+    <div style="display:flex;flex-direction:column;gap:4px">
+      <div class="bubble">${formatText(text)}</div>
+      ${speakBtn ? `<div style="text-align:left">${speakBtn}</div>` : ''}
+    </div>`;
+  msgs.appendChild(row);
+  msgs.scrollTop = msgs.scrollHeight;
+  return row;
+}
+
+// ── Text-to-Speech ────────────────────────────────────────────
+function speakText(btn) {
+  if (!window.speechSynthesis) { alert('Text-to-speech not supported in this browser.'); return; }
+  window.speechSynthesis.cancel();
+  const text = btn.getAttribute('data-text');
+  const utt = new SpeechSynthesisUtterance(text);
+  utt.lang = LANG_VOICE[currentLang] || 'en-IN';
+  utt.rate = 0.9;
+  utt.pitch = 1;
+  // Try to pick a matching voice
+  const voices = window.speechSynthesis.getVoices();
+  const match = voices.find(v => v.lang.startsWith(utt.lang.split('-')[0]));
+  if (match) utt.voice = match;
+  btn.textContent = '⏹';
+  utt.onend = () => { btn.textContent = '🔊'; };
+  window.speechSynthesis.speak(utt);
+}
+
+// ── Voice Input (Speech-to-Text) ──────────────────────────────
+let _recog = null;
+let _recogActive = false;
+
+function toggleVoice() {
+  const btn = document.getElementById('mic-btn');
+  if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+    alert('Voice input is not supported in this browser.\nPlease use Chrome or Edge.');
+    return;
+  }
+  if (_recogActive) {
+    _recog && _recog.stop();
+    return;
+  }
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  _recog = new SR();
+  _recog.lang = LANG_VOICE[currentLang] || 'en-IN';
+  _recog.interimResults = false;
+  _recog.maxAlternatives = 1;
+
+  _recog.onstart = () => {
+    _recogActive = true;
+    btn.classList.add('recording');
+    btn.textContent = '⏹';
+    btn.title = 'Tap to stop';
+  };
+  _recog.onresult = (e) => {
+    const transcript = e.results[0][0].transcript;
+    const ta = document.getElementById('msg-input');
+    ta.value = transcript;
+    ta.focus();
+    // Auto-send after short delay
+    setTimeout(() => sendMessage(), 400);
+  };
+  _recog.onerror = (e) => {
+    if (e.error !== 'aborted') alert('Voice error: ' + e.error + '\nMake sure microphone permission is allowed.');
+  };
+  _recog.onend = () => {
+    _recogActive = false;
+    btn.classList.remove('recording');
+    btn.textContent = '🎤';
+    btn.title = 'Voice input';
+    _recog = null;
+  };
+  _recog.start();
 }
 </script>
 </body>
