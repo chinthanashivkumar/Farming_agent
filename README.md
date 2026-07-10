@@ -2,6 +2,11 @@
 > **AI-Powered RAG Agricultural Advisory Platform for Small-Scale Farmers**
 > Built with IBM Granite LLM · FastAPI · React · ChromaDB · PostgreSQL
 
+## 🚀 Live Demo
+**[https://farming-agent-5li2.onrender.com](https://farming-agent-5li2.onrender.com)**
+
+> ℹ️ Hosted on Render free tier — may take 30–50 seconds to wake up on first visit.
+
 ---
 
 ## 📋 Table of Contents
