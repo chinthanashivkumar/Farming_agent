@@ -1,5 +1,41 @@
-fastapi
-uvicorn
-python-dotenv
+# Core framework
+fastapi==0.139.0
+uvicorn==0.51.0
+pydantic==2.13.4
+pydantic-settings==2.14.2
+python-dotenv==1.2.2
+
+# HTTP & utilities
 httpx
+requests
+tenacity
+loguru
+
+# Translation (guaranteed Kannada/Hindi output)
 deep_translator
+
+# IBM WatsonX AI
+ibm-watsonx-ai
+
+# Database
+sqlalchemy
+asyncpg
+alembic
+
+# Auth
+python-jose[cryptography]
+passlib[bcrypt]
+
+# RAG / Vector store
+chromadb
+langchain
+langchain-community
+sentence-transformers
+
+# Speech
+gTTS
+SpeechRecognition
+pydub
+
+# Market data
+beautifulsoup4
