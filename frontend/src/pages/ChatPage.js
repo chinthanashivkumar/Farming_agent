@@ -219,33 +219,37 @@ export default function ChatPage() {
     } finally { setLoading(false); }
   };
 
-  // ── Mic — Web Speech API ──────────────────────────────────────────────────
-  // finalTranscript lives in a ref so onend closure always has the latest value
+  // ── Mic — Web Speech API ─────────────────────────────────────────────────
   const finalTranscriptRef = useRef('');
+  const isRecordingRef     = useRef(false);  // stable ref for async callbacks
 
-  const startRecognition = () => {
-    const SpeechRecognition =
-      window.SpeechRecognition || window.webkitSpeechRecognition;
-
-    if (!SpeechRecognition) {
-      toast.error('Speech recognition not supported. Use Google Chrome or Edge.', { duration: 5000 });
-      return;
-    }
-
-    // Abort any leftover instance
+  const stopMic = (commitText) => {
+    isRecordingRef.current = false;
     if (recognitionRef.current) {
-      recognitionRef.current.abort();
+      try { recognitionRef.current.abort(); } catch (_) {}
       recognitionRef.current = null;
     }
-
+    const text = (finalTranscriptRef.current || '').trim();
     finalTranscriptRef.current = '';
+    setIsRecording(false);
+    setMicStatus('');
+    if (commitText && text) {
+      setInput(prev => prev ? prev + ' ' + text : text);
+      toast.success('✅ Voice captured — press ➤ to send');
+    }
+  };
 
-    const rec = new SpeechRecognition();
-    // ⚠️ Chrome requires 'kn' (not 'kn-IN') for Kannada. 'hi-IN' and 'en-IN' are fine.
+  // Creates a fresh SpeechRecognition instance each call — reusing the same
+  // instance after .stop()/.abort() causes InvalidStateError in Chrome.
+  const spawnRecognition = () => {
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SR) return null;
+
+    const rec = new SR();
     rec.lang            = SPEECH_LANG_MAP[language] || 'en-IN';
-    rec.interimResults  = true;    // live transcript as you speak
+    rec.interimResults  = true;
     rec.maxAlternatives = 1;
-    rec.continuous      = false;   // one utterance; we restart on end for continuous feel
+    rec.continuous      = false;   // single utterance + auto-restart is more stable
 
     rec.onstart = () => {
       setIsRecording(true);
@@ -266,69 +270,69 @@ export default function ChatPage() {
     };
 
     rec.onerror = (event) => {
-      // 'no-speech' just means a pause — restart automatically
       if (event.error === 'no-speech') {
-        rec.stop();   // triggers onend which restarts if still recording
+        // silence between words — auto-restart below in onend
         return;
       }
-      setIsRecording(false);
-      setMicStatus('');
-      recognitionRef.current = null;
+      if (event.error === 'aborted') return; // user pressed stop — ignore
       const msgs = {
-        'not-allowed':            'Microphone access denied — allow mic in browser settings.',
-        'network':                'Network error during speech recognition.',
-        'language-not-supported': 'This language is not supported for mic input in your browser.',
-        'aborted':                null,
-        'audio-capture':          'No microphone found. Please connect a mic.',
+        'not-allowed':            'Microphone access denied — click the 🔒 icon in the address bar and allow mic.',
+        'network':                'Network error during voice recognition.',
+        'language-not-supported': 'Kannada mic requires Google Chrome. Try switching to English mic.',
+        'audio-capture':          'No microphone found — please connect a mic.',
       };
-      const m = msgs[event.error] ?? `Mic error: ${event.error}`;
-      if (m) toast.error(m, { duration: 5000 });
+      toast.error(msgs[event.error] ?? `Mic error: ${event.error}`, { duration: 6000 });
+      stopMic(false);
     };
 
     rec.onend = () => {
-      // If the user manually stopped recording, commit the text
-      if (!recognitionRef.current || recognitionRef.current !== rec) {
-        // recognition was aborted — do nothing
-        return;
-      }
+      if (!isRecordingRef.current) return; // user already stopped
+
       const captured = finalTranscriptRef.current.trim();
       if (captured) {
-        setInput(prev => prev ? prev + ' ' + captured : captured);
-        finalTranscriptRef.current = '';
-        setIsRecording(false);
-        setMicStatus('');
-        recognitionRef.current = null;
-        toast.success('✅ Voice captured — press ➤ to send');
+        // We have speech — commit and stop
+        stopMic(true);
       } else {
-        // No speech yet — restart to keep listening
-        try { rec.start(); } catch (_) {
-          setIsRecording(false);
-          setMicStatus('');
-          recognitionRef.current = null;
+        // No speech yet (silence/pause) — spawn a fresh instance and keep listening
+        recognitionRef.current = null;
+        const next = spawnRecognition();
+        if (next) {
+          recognitionRef.current = next;
+          try { next.start(); } catch (_) { stopMic(false); }
         }
       }
     };
 
-    recognitionRef.current = rec;
-    rec.start();
+    return rec;
   };
 
   const toggleRecording = () => {
     if (isRecording) {
-      // User pressed stop — commit whatever we have
-      const captured = finalTranscriptRef.current.trim();
-      if (captured) {
-        setInput(prev => prev ? prev + ' ' + captured : captured);
-        toast.success('✅ Voice captured — press ➤ to send');
-      }
-      recognitionRef.current?.abort();
-      recognitionRef.current = null;
-      finalTranscriptRef.current = '';
-      setIsRecording(false);
-      setMicStatus('');
+      stopMic(true);
       return;
     }
-    startRecognition();
+
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SR) {
+      toast.error(
+        'Speech recognition requires Google Chrome or Microsoft Edge. Firefox is not supported.',
+        { duration: 6000 }
+      );
+      return;
+    }
+
+    finalTranscriptRef.current = '';
+    isRecordingRef.current = true;
+
+    const rec = spawnRecognition();
+    if (!rec) { isRecordingRef.current = false; return; }
+    recognitionRef.current = rec;
+    try {
+      rec.start();
+    } catch (e) {
+      toast.error('Could not start microphone: ' + e.message, { duration: 5000 });
+      isRecordingRef.current = false;
+    }
   };
 
   // ── TTS — browser-native ──────────────────────────────────────────────────
