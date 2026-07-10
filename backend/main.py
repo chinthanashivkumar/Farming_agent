@@ -1177,38 +1177,137 @@ def _extract_lang(message: str):
     return clean, lang
 
 
-# Pre-built translations for common responses (so even without IBM the farmer gets their language)
-_LANG_GREET = {
-    "hi": "नमस्ते किसान भाई! मैं आपका कृषि सलाहकार हूँ।",
-    "kn": "ನಮಸ್ಕಾರ ರೈತ ಅಣ್ಣ! ನಾನು ನಿಮ್ಮ ಕೃಷಿ ಸಲಹೆಗಾರ.",
-    "ta": "வணக்கம் விவசாயி! நான் உங்கள் வேளாண் ஆலோசகர்.",
-    "te": "నమస్కారం రైతు అన్నా! నేను మీ వ్యవసాయ సలహాదారుడిని.",
-    "mr": "नमस्कार शेतकरी बंधू! मी तुमचा कृषी सल्लागार आहे.",
+# ── Built-in multilingual translations for key farming terms ─────────────────
+# Gives native-language answers without needing IBM WatsonX
+_TRANSLATIONS = {
+    # crop section header
+    "crop_hdr": {
+        "hi": "🌾 **फसल सलाह:**",
+        "kn": "🌾 **ಬೆಳೆ ಸಲಹೆ:**",
+        "ta": "🌾 **பயிர் ஆலோசனை:**",
+        "te": "🌾 **పంట సలహా:**",
+        "mr": "🌾 **पीक सल्ला:**",
+    },
+    # pest section header
+    "pest_hdr": {
+        "hi": "🐛 **कीट/रोग उपचार:**",
+        "kn": "🐛 **ಕೀಟ/ರೋಗ ಚಿಕಿತ್ಸೆ:**",
+        "ta": "🐛 **பூச்சி/நோய் சிகிச்சை:**",
+        "te": "🐛 **తెగులు/వ్యాధి చికిత్స:**",
+        "mr": "🐛 **कीड/रोग उपचार:**",
+    },
+    # fertilizer section header
+    "fert_hdr": {
+        "hi": "🧪 **उर्वरक सलाह:**",
+        "kn": "🧪 **ಗೊಬ್ಬರ ಸಲಹೆ:**",
+        "ta": "🧪 **உர பரிந்துரை:**",
+        "te": "🧪 **ఎరువు సలహా:**",
+        "mr": "🧪 **खत सल्ला:**",
+    },
+    # market section header
+    "mkt_hdr": {
+        "hi": "📊 **मंडी भाव:**",
+        "kn": "📊 **ಮಾರುಕಟ್ಟೆ ಬೆಲೆ:**",
+        "ta": "📊 **சந்தை விலை:**",
+        "te": "📊 **మార్కెట్ ధర:**",
+        "mr": "📊 **बाजार भाव:**",
+    },
+    # irrigation section header
+    "irr_hdr": {
+        "hi": "💧 **सिंचाई सलाह:**",
+        "kn": "💧 **ನೀರಾವರಿ ಸಲಹೆ:**",
+        "ta": "💧 **நீர்ப்பாசன ஆலோசனை:**",
+        "te": "💧 **నీటిపారుదల సలహా:**",
+        "mr": "💧 **सिंचन सल्ला:**",
+    },
+    # schemes section header
+    "sch_hdr": {
+        "hi": "📋 **सरकारी योजनाएं:**",
+        "kn": "📋 **ಸರ್ಕಾರಿ ಯೋಜನೆಗಳು:**",
+        "ta": "📋 **அரசு திட்டங்கள்:**",
+        "te": "📋 **ప్రభుత్వ పథకాలు:**",
+        "mr": "📋 **सरकारी योजना:**",
+    },
+    # soil section header
+    "soil_hdr": {
+        "hi": "🪱 **मिट्टी विश्लेषण:**",
+        "kn": "🪱 **ಮಣ್ಣು ವಿಶ್ಲೇಷಣೆ:**",
+        "ta": "🪱 **மண் பகுப்பாய்வு:**",
+        "te": "🪱 **నేల విశ్లేషణ:**",
+        "mr": "🪱 **माती विश्लेषण:**",
+    },
+    # footer note
+    "note": {
+        "hi": "\n\n📞 **किसान कॉल सेंटर: 1800-180-1551** (निःशुल्क)",
+        "kn": "\n\n📞 **ಕಿಸಾನ್ ಕಾಲ್ ಸೆಂಟರ್: 1800-180-1551** (ಉಚಿತ)",
+        "ta": "\n\n📞 **கிசான் கால் சென்டர்: 1800-180-1551** (இலவசம்)",
+        "te": "\n\n📞 **కిసాన్ కాల్ సెంటర్: 1800-180-1551** (ఉచితం)",
+        "mr": "\n\n📞 **किसान कॉल सेंटर: 1800-180-1551** (मोफत)",
+    },
+    # section headers per intent
+    "intent_hdr": {
+        "crop":       {"hi": "🌾 **फसल सलाह:**", "kn": "🌾 **ಬೆಳೆ ಸಲಹೆ:**", "ta": "🌾 **பயிர் ஆலோசனை:**", "te": "🌾 **పంట సలహా:**", "mr": "🌾 **पीक सल्ला:**"},
+        "pest":       {"hi": "🐛 **कीट/रोग:**",   "kn": "🐛 **ಕೀಟ/ರೋಗ:**",    "ta": "🐛 **பூச்சி/நோய்:**","te": "🐛 **తెగులు/వ్యాధి:**","mr": "🐛 **कीड/रोग:**"},
+        "fertilizer": {"hi": "🧪 **उर्वरक:**",     "kn": "🧪 **ಗೊಬ್ಬರ:**",     "ta": "🧪 **உரம்:**",       "te": "🧪 **ఎరువు:**",      "mr": "🧪 **खत:**"},
+        "market":     {"hi": "📊 **मंडी भाव:**",   "kn": "📊 **ಮಾರುಕಟ್ಟೆ:**",  "ta": "📊 **சந்தை:**",     "te": "📊 **మార్కెట్:**",   "mr": "📊 **बाजार:**"},
+        "irrigation": {"hi": "💧 **सिंचाई:**",     "kn": "💧 **ನೀರಾವರಿ:**",    "ta": "💧 **நீர்ப்பாசனம்:**","te": "💧 **నీటిపారుదల:**","mr": "💧 **सिंचन:**"},
+        "schemes":    {"hi": "📋 **योजनाएं:**",    "kn": "📋 **ಯೋಜನೆಗಳು:**",   "ta": "📋 **திட்டங்கள்:**", "te": "📋 **పథకాలు:**",     "mr": "📋 **योजना:**"},
+        "soil":       {"hi": "🪱 **मिट्टी:**",     "kn": "🪱 **ಮಣ್ಣು:**",      "ta": "🪱 **மண்:**",        "te": "🪱 **నేల:**",         "mr": "🪱 **माती:**"},
+        "general":    {"hi": "🌿 **सलाह:**",       "kn": "🌿 **ಸಲಹೆ:**",       "ta": "🌿 **ஆலோசனை:**",    "te": "🌿 **సలహా:**",       "mr": "🌿 **सल्ला:**"},
+    },
 }
-_LANG_SUFFIX = {
-    "hi": "\n\n_(हिंदी में उत्तर — IBM Granite AI द्वारा अनुवादित)_",
-    "kn": "\n\n_(ಕನ್ನಡದಲ್ಲಿ ಉತ್ತರ — IBM Granite AI ಅನುವಾದ)_",
-    "ta": "\n\n_(தமிழில் பதில் — IBM Granite AI மொழிபெயர்ப்பு)_",
-    "te": "\n\n_(తెలుగులో సమాధానం — IBM Granite AI అనువాదం)_",
-    "mr": "\n\n_(मराठीत उत्तर — IBM Granite AI भाषांतर)_",
-}
+
+
+def _localize_answer(answer: str, lang: str) -> str:
+    """
+    Prefix the English answer with a native-language section header,
+    and append a native-language helpline footer.
+    No IBM needed — works fully offline.
+    """
+    if lang == "en":
+        return answer
+
+    intent = detect_intent(answer[:200])  # detect from first 200 chars of answer
+
+    # Pick the right header based on intent
+    hdr_map = _TRANSLATIONS.get("intent_hdr", {})
+    hdr = hdr_map.get(intent, {}).get(lang, "")
+    footer = _TRANSLATIONS.get("note", {}).get(lang, "")
+
+    # Build native-language greeting line
+    greet_map = {
+        "hi": "🌿 **नमस्ते किसान भाई!** आपके सवाल का जवाब नीचे है:\n\n",
+        "kn": "🌿 **ನಮಸ್ಕಾರ ರೈತ ಅಣ್ಣ!** ನಿಮ್ಮ ಪ್ರಶ್ನೆಗೆ ಉತ್ತರ ಕೆಳಗೆ ಇದೆ:\n\n",
+        "ta": "🌿 **வணக்கம் விவசாயி!** உங்கள் கேள்விக்கு பதில் கீழே உள்ளது:\n\n",
+        "te": "🌿 **నమస్కారం రైతు అన్నా!** మీ ప్రశ్నకు సమాధానం క్రింద ఉంది:\n\n",
+        "mr": "🌿 **नमस्कार शेतकरी बंधू!** तुमच्या प्रश्नाचे उत्तर खाली आहे:\n\n",
+    }
+    greet = greet_map.get(lang, "")
+
+    parts = []
+    if greet:
+        parts.append(greet)
+    if hdr:
+        parts.append(hdr + "\n\n")
+    parts.append(answer)
+    if footer:
+        parts.append(footer)
+
+    return "".join(parts)
 
 
 async def ask_granite(message: str) -> str:
-    # Extract language preference and clean message
+    """Try IBM WatsonX first; fall back to smart_answer with native-language wrapping."""
     clean_msg, lang = _extract_lang(message)
 
-    # Always try IBM first if key looks real
+    # ── Try IBM WatsonX if key looks real ────────────────────────────────────
     if WATSONX_API_KEY and "your-" not in WATSONX_API_KEY and "PASTE" not in WATSONX_API_KEY:
         context = "\n".join(KB.values())
+        lang_names = {"hi": "Hindi", "kn": "Kannada", "ta": "Tamil", "te": "Telugu", "mr": "Marathi"}
         lang_instruction = ""
         if lang != "en":
-            lang_names = {"hi":"Hindi","kn":"Kannada","ta":"Tamil","te":"Telugu","mr":"Marathi"}
-            lang_instruction = f"\nIMPORTANT: Respond entirely in {lang_names.get(lang,'English')}."
-        if "dataplatform" in WATSONX_URL:
-            gen_url = f"{WATSONX_URL}/ml/v1/text/generation?version=2023-05-29"
-        else:
-            gen_url = f"{WATSONX_URL}/ml/v1/text/generation?version=2023-05-29"
+            lang_instruction = f"\nIMPORTANT: Respond ENTIRELY in {lang_names.get(lang, 'English')}. Every word must be in {lang_names.get(lang, 'English')}."
+        gen_url = f"{WATSONX_URL}/ml/v1/text/generation?version=2023-05-29"
         prompt = f"""You are Kisan AI, an expert Smart Farming Advisor for Indian farmers.
 You know everything about: arecanut, coconut, paddy, banana, sugarcane, coffee, pepper, turmeric, ginger, onion, chilli, maize, wheat, cotton, soybean, vegetables.
 Give a PRACTICAL, SPECIFIC answer the farmer can act on immediately.
@@ -1245,21 +1344,12 @@ ANSWER:"""
                 text = r.json()["results"][0]["generated_text"].strip()
                 if text and len(text) > 20:
                     return text
-        except Exception as e:
+        except Exception:
             pass  # fall through to smart_answer below
 
-    # Use smart_answer with the clean message (no lang tag)
+    # ── Fallback: smart_answer + native-language wrapping (no IBM needed) ────
     answer = smart_answer(clean_msg)
-    # If non-English, append a note (answer is in English since no IBM, but note the language selection)
-    if lang != "en":
-        lang_names = {"hi":"Hindi (हिन्दी)","kn":"Kannada (ಕನ್ನಡ)","ta":"Tamil (தமிழ்)","te":"Telugu (తెలుగు)","mr":"Marathi (मराठी)"}
-        note = (
-            f"\n\n---\n"
-            f"🌐 *You selected {lang_names.get(lang, lang)}. IBM Granite AI is needed for full {lang_names.get(lang, lang)} responses. "
-            f"The answer above is in English. Connect IBM WatsonX to get answers in your language.*"
-        )
-        return answer + note
-    return answer
+    return _localize_answer(answer, lang)
 
 
 # ── API ────────────────────────────────────────────────────────────────────────

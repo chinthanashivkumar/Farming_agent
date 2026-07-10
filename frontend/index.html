@@ -1212,8 +1212,8 @@ function setLang(code) {
   document.querySelectorAll('.lang-btn').forEach(b => b.classList.remove('active'));
   const btn = document.getElementById('lb-' + code);
   if (btn) btn.classList.add('active');
-  // Update mic speech recognition language
-  if (_recog) _recog.lang = LANG_VOICE[code] || 'en-IN';
+  // Update mic language (only if currently recording; otherwise it picks up on next start)
+  if (_recog && _recogActive) _recog.lang = LANG_VOICE[code] || 'en-IN';
   // Show toast
   const names = {en:'English',hi:'हिन्दी',kn:'ಕನ್ನಡ',ta:'தமிழ்',te:'తెలుగు',mr:'मराठी'};
   const toast = document.createElement('div');
@@ -1251,47 +1251,118 @@ function speakText(btn) {
 let _recog = null;
 let _recogActive = false;
 
+/* Show a small toast instead of blocking alert() */
+function _voiceToast(msg, color) {
+  const t = document.createElement('div');
+  t.textContent = msg;
+  t.style.cssText = `position:fixed;bottom:80px;left:50%;transform:translateX(-50%);
+    background:${color||'#1b5226'};color:#fff;padding:10px 20px;border-radius:20px;
+    font-size:.85rem;font-weight:700;z-index:9999;box-shadow:0 4px 16px rgba(0,0,0,.3);
+    white-space:nowrap;max-width:90vw;text-align:center`;
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), 3000);
+}
+
+function _resetMicBtn() {
+  const btn = document.getElementById('mic-btn');
+  if (!btn) return;
+  btn.classList.remove('recording');
+  btn.textContent = '🎤';
+  btn.title = 'Voice input — tap to speak';
+  _recogActive = false;
+}
+
 function toggleVoice() {
   const btn = document.getElementById('mic-btn');
-  if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
-    alert('Voice input is not supported in this browser.\nPlease use Chrome or Edge.');
-    return;
-  }
+
+  // ── Stop if already recording ──
   if (_recogActive) {
-    _recog && _recog.stop();
+    if (_recog) { try { _recog.stop(); } catch(e){} }
+    _resetMicBtn();
     return;
   }
-  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-  _recog = new SR();
-  _recog.lang = LANG_VOICE[currentLang] || 'en-IN';
-  _recog.interimResults = false;
+
+  // ── Browser support check ──
+  if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+    _voiceToast('❌ Voice input not supported. Use Chrome or Edge.', '#dc2626');
+    return;
+  }
+
+  // ── Destroy any previous instance cleanly ──
+  if (_recog) {
+    try { _recog.abort(); } catch(e) {}
+    _recog = null;
+  }
+
+  const SpeechRecognitionAPI = window.SpeechRecognition || window.webkitSpeechRecognition;
+  _recog = new SpeechRecognitionAPI();
+  _recog.lang            = LANG_VOICE[currentLang] || 'en-IN';
+  _recog.continuous      = false;
+  _recog.interimResults  = true;   // show live preview while speaking
   _recog.maxAlternatives = 1;
+
+  const ta = document.getElementById('msg-input');
+  let finalTranscript = '';
 
   _recog.onstart = () => {
     _recogActive = true;
+    finalTranscript = '';
     btn.classList.add('recording');
     btn.textContent = '⏹';
-    btn.title = 'Tap to stop';
+    btn.title = 'Listening… tap to stop';
+    const langLabel = {en:'English',hi:'हिन्दी',kn:'ಕನ್ನಡ',ta:'தமிழ்',te:'తెలుగు',mr:'मराठी'}[currentLang] || currentLang;
+    _voiceToast('🎤 Listening in ' + langLabel + '…', '#1b5226');
   };
+
   _recog.onresult = (e) => {
-    const transcript = e.results[0][0].transcript;
-    const ta = document.getElementById('msg-input');
-    ta.value = transcript;
-    ta.focus();
-    // Auto-send after short delay
-    setTimeout(() => sendMessage(), 400);
+    let interim = '';
+    finalTranscript = '';
+    for (let i = e.resultIndex; i < e.results.length; i++) {
+      if (e.results[i].isFinal) {
+        finalTranscript += e.results[i][0].transcript;
+      } else {
+        interim += e.results[i][0].transcript;
+      }
+    }
+    // Show interim preview in the input box
+    ta.value = finalTranscript || interim;
   };
+
   _recog.onerror = (e) => {
-    if (e.error !== 'aborted') alert('Voice error: ' + e.error + '\nMake sure microphone permission is allowed.');
+    if (e.error === 'aborted') return;          // user stopped — silent
+    if (e.error === 'no-speech') {
+      _voiceToast('🔇 No speech detected. Try again.', '#d97706');
+    } else if (e.error === 'not-allowed' || e.error === 'service-not-allowed') {
+      _voiceToast('🚫 Microphone blocked. Allow mic in browser settings.', '#dc2626');
+    } else if (e.error === 'network') {
+      _voiceToast('🌐 Network error. Check your internet connection.', '#dc2626');
+    } else {
+      _voiceToast('⚠️ Voice error: ' + e.error, '#dc2626');
+    }
+    _resetMicBtn();
   };
+
   _recog.onend = () => {
-    _recogActive = false;
-    btn.classList.remove('recording');
-    btn.textContent = '🎤';
-    btn.title = 'Voice input';
-    _recog = null;
+    _resetMicBtn();
+    if (finalTranscript.trim()) {
+      ta.value = finalTranscript.trim();
+      ta.focus();
+      // Auto-send after a short pause so the user can see what was captured
+      setTimeout(() => sendMessage(), 500);
+    } else if (ta.value.trim()) {
+      // interim result was shown — send it
+      finalTranscript = ta.value.trim();
+      ta.focus();
+      setTimeout(() => sendMessage(), 500);
+    }
   };
-  _recog.start();
+
+  try {
+    _recog.start();
+  } catch(e) {
+    _voiceToast('⚠️ Could not start mic: ' + e.message, '#dc2626');
+    _resetMicBtn();
+  }
 }
 </script>
 </body>
