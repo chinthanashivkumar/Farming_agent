@@ -26,7 +26,7 @@ Smart Farming Advisor bridges the knowledge gap for small-scale farmers by provi
 - **Real-time AI answers** powered by IBM Granite via WatsonX AI
 - **Retrieval-Augmented Generation (RAG)** over trusted agricultural knowledge bases
 - **Live mandi market prices** from AgMarkNet / data.gov.in
-- **Multilingual support** (English, Hindi, Kannada, Tamil, Telugu, Marathi)
+- **Multilingual support** (English, Hindi, Kannada)
 - **Voice input & text-to-speech** responses
 
 ---
@@ -41,8 +41,8 @@ Smart Farming Advisor bridges the knowledge gap for small-scale farmers by provi
 | 🐛 Pest & Disease     | Symptom-based diagnosis + image upload |
 | 🧪 Fertilizer Advisor | Stage-wise fertilizer schedule |
 | 💧 Irrigation         | Smart irrigation calendar |
-| 📊 Market Prices      | Live mandi prices with trend charts |
-| 🌐 Multilingual       | 6 Indian language support (EN/Hindi/Kannada/Tamil/Telugu/Marathi) |
+| 📊 Market Prices      | Live APMC/mandi prices for 15+ crops |
+| 🌐 Multilingual       | 3 Indian languages: English, Hindi, Kannada |
 | 🎤 Voice              | Mic input + text-to-speech output |
 
 ---
@@ -155,9 +155,6 @@ smart-farming-advisor/
 
 ### Prerequisites
 - Python 3.11+
-- Node.js 18+
-- PostgreSQL 16
-- Docker (optional, for full stack)
 
 ### 1. Clone & Configure
 
@@ -167,13 +164,10 @@ cd smart-farming-advisor
 
 # Backend secrets
 cp backend/.env.example backend/.env
-# Edit backend/.env and fill in your API keys (see below)
-
-# Frontend env
-cp frontend/.env.example frontend/.env
+# Edit backend/.env and fill in your IBM WatsonX API keys (see below)
 ```
 
-### 2. Backend Setup
+### 2. Run Backend
 
 ```bash
 cd backend
@@ -181,32 +175,12 @@ python -m venv venv
 venv\Scripts\activate       # Windows
 # source venv/bin/activate  # macOS/Linux
 
-pip install -r requirements.txt
+pip install fastapi uvicorn python-dotenv httpx
 
-# Initialize database
-python -c "import asyncio; from app.core.database import init_db; asyncio.run(init_db())"
-
-# Seed knowledge base (ChromaDB)
-python -m app.rag.seed_knowledge
-
-# Add your own documents (optional)
-# Copy PDF/DOCX files to backend/data/documents/
-# python -c "from app.rag.document_loader import ingest_directory; ingest_directory()"
-
-# Run backend
-python run.py
+# Run backend (serves frontend at http://localhost:8000)
+python main.py
 ```
-Backend will start at **http://localhost:8000**
-Swagger docs at **http://localhost:8000/api/docs**
-
-### 3. Frontend Setup
-
-```bash
-cd frontend
-npm install
-npm start
-```
-Frontend at **http://localhost:3000**
+App available at **http://localhost:8000**
 
 ---
 
