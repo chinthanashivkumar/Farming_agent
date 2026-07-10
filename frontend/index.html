@@ -1230,26 +1230,79 @@ window.addEventListener('DOMContentLoaded', () => {
 });
 
 // ── Text-to-Speech ────────────────────────────────────────────
+let _ttsBtn = null;  // track which button is currently playing
+
+function _cleanForSpeech(raw) {
+  return raw
+    // strip emoji characters (Unicode ranges)
+    .replace(/[\u{1F300}-\u{1FFFF}]/gu, '')
+    .replace(/[\u{2600}-\u{27BF}]/gu, '')
+    .replace(/[\u{FE00}-\u{FE0F}]/gu, '')
+    // strip markdown bold/italic markers
+    .replace(/\*\*(.+?)\*\*/g, '$1')
+    .replace(/\*(.+?)\*/g, '$1')
+    // strip bullet points / dashes at line start
+    .replace(/^[•\-]\s*/gm, '')
+    // strip code backticks
+    .replace(/`([^`]+)`/g, '$1')
+    // collapse multiple spaces/newlines
+    .replace(/\n{3,}/g, '\n\n')
+    .replace(/  +/g, ' ')
+    .trim();
+}
+
 function speakText(btn) {
-  if (!window.speechSynthesis) { alert('Text-to-speech not supported in this browser.'); return; }
+  if (!window.speechSynthesis) return;
+
+  // ── If this button is already playing → stop ──
+  if (_ttsBtn === btn) {
+    window.speechSynthesis.cancel();
+    btn.textContent = '🔊';
+    _ttsBtn = null;
+    return;
+  }
+
+  // ── Stop whatever was playing before ──
   window.speechSynthesis.cancel();
-  const text = btn.getAttribute('data-text');
-  const utt = new SpeechSynthesisUtterance(text);
-  utt.lang = LANG_VOICE[currentLang] || 'en-IN';
-  utt.rate = 0.9;
-  utt.pitch = 1;
-  // Try to pick a matching voice
-  const voices = window.speechSynthesis.getVoices();
-  const match = voices.find(v => v.lang.startsWith(utt.lang.split('-')[0]));
-  if (match) utt.voice = match;
-  btn.textContent = '⏹';
-  utt.onend = () => { btn.textContent = '🔊'; };
-  window.speechSynthesis.speak(utt);
+  if (_ttsBtn) { _ttsBtn.textContent = '🔊'; _ttsBtn = null; }
+
+  const raw  = btn.getAttribute('data-text') || '';
+  const text = _cleanForSpeech(raw);
+  if (!text) return;
+
+  const utt  = new SpeechSynthesisUtterance(text);
+  // Always speak in plain English regardless of UI language —
+  // most browsers only have good quality English voices installed.
+  utt.lang  = 'en-IN';
+  utt.rate  = 0.88;
+  utt.pitch = 1.0;
+
+  // Pick best available English voice
+  function _doSpeak() {
+    const voices = window.speechSynthesis.getVoices();
+    const prefer = voices.find(v => v.lang === 'en-IN')
+                || voices.find(v => v.lang.startsWith('en-'))
+                || voices.find(v => v.default);
+    if (prefer) utt.voice = prefer;
+    btn.textContent = '⏹';
+    _ttsBtn = btn;
+    utt.onend = () => { btn.textContent = '🔊'; if (_ttsBtn === btn) _ttsBtn = null; };
+    utt.onerror = () => { btn.textContent = '🔊'; if (_ttsBtn === btn) _ttsBtn = null; };
+    window.speechSynthesis.speak(utt);
+  }
+
+  // Voices may not be loaded yet on first call
+  if (window.speechSynthesis.getVoices().length > 0) {
+    _doSpeak();
+  } else {
+    window.speechSynthesis.onvoiceschanged = () => { _doSpeak(); };
+  }
 }
 
 // ── Voice Input (Speech-to-Text) ──────────────────────────────
 let _recog = null;
 let _recogActive = false;
+let _userStoppedMic = false;  // module-level flag: user tapped stop intentionally
 
 /* Show a small toast instead of blocking alert() */
 function _voiceToast(msg, color) {
@@ -1277,8 +1330,11 @@ function toggleVoice() {
 
   // ── Stop if already recording ──
   if (_recogActive) {
-    if (_recog) { try { _recog.stop(); } catch(e){} }
+    _userStoppedMic = true;       // signal onend to NOT auto-send
+    if (_recog) { try { _recog.abort(); } catch(e){} }
     _resetMicBtn();
+    const ta0 = document.getElementById('msg-input');
+    if (ta0) ta0.value = '';
     return;
   }
 
@@ -1296,7 +1352,9 @@ function toggleVoice() {
 
   const SpeechRecognitionAPI = window.SpeechRecognition || window.webkitSpeechRecognition;
   _recog = new SpeechRecognitionAPI();
-  _recog.lang            = LANG_VOICE[currentLang] || 'en-IN';
+  // Always recognise in English — farm terms (koleroga, paddy, urea, etc.)
+  // are detected far more accurately in English by all browsers.
+  _recog.lang            = 'en-IN';
   _recog.continuous      = false;
   _recog.interimResults  = true;   // show live preview while speaking
   _recog.maxAlternatives = 1;
@@ -1306,12 +1364,12 @@ function toggleVoice() {
 
   _recog.onstart = () => {
     _recogActive = true;
+    _userStoppedMic = false;   // reset on every new recording session
     finalTranscript = '';
     btn.classList.add('recording');
     btn.textContent = '⏹';
     btn.title = 'Listening… tap to stop';
-    const langLabel = {en:'English',hi:'हिन्दी',kn:'ಕನ್ನಡ',ta:'தமிழ்',te:'తెలుగు',mr:'मराठी'}[currentLang] || currentLang;
-    _voiceToast('🎤 Listening in ' + langLabel + '…', '#1b5226');
+    _voiceToast('🎤 Listening… speak your question', '#1b5226');
   };
 
   _recog.onresult = (e) => {
@@ -1324,34 +1382,31 @@ function toggleVoice() {
         interim += e.results[i][0].transcript;
       }
     }
-    // Show interim preview in the input box
+    // Show live preview in input box
     ta.value = finalTranscript || interim;
   };
 
   _recog.onerror = (e) => {
     if (e.error === 'aborted') return;          // user stopped — silent
     if (e.error === 'no-speech') {
-      _voiceToast('🔇 No speech detected. Try again.', '#d97706');
+      _voiceToast('No speech detected. Try again.', '#d97706');
     } else if (e.error === 'not-allowed' || e.error === 'service-not-allowed') {
-      _voiceToast('🚫 Microphone blocked. Allow mic in browser settings.', '#dc2626');
+      _voiceToast('Microphone blocked. Allow mic in browser settings.', '#dc2626');
     } else if (e.error === 'network') {
-      _voiceToast('🌐 Network error. Check your internet connection.', '#dc2626');
+      _voiceToast('Network error. Check your internet connection.', '#dc2626');
     } else {
-      _voiceToast('⚠️ Voice error: ' + e.error, '#dc2626');
+      _voiceToast('Voice error: ' + e.error, '#dc2626');
     }
     _resetMicBtn();
   };
 
   _recog.onend = () => {
     _resetMicBtn();
-    if (finalTranscript.trim()) {
-      ta.value = finalTranscript.trim();
-      ta.focus();
-      // Auto-send after a short pause so the user can see what was captured
-      setTimeout(() => sendMessage(), 500);
-    } else if (ta.value.trim()) {
-      // interim result was shown — send it
-      finalTranscript = ta.value.trim();
+    // Only auto-send if the user did NOT manually tap stop
+    if (_userStoppedMic) { return; }
+    const captured = finalTranscript.trim() || ta.value.trim();
+    if (captured) {
+      ta.value = captured;
       ta.focus();
       setTimeout(() => sendMessage(), 500);
     }

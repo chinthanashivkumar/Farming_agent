@@ -1258,42 +1258,137 @@ _TRANSLATIONS = {
 }
 
 
-def _localize_answer(answer: str, lang: str) -> str:
+# ── Full translations for top common questions ────────────────────────────────
+# Kannada and Hindi are prioritized; others use greeting + English body + footer
+_FULL_ANSWERS_KN = {
+    "koleroga": """ನಮಸ್ಕಾರ ರೈತ ಅಣ್ಣ! ಅಡಕೆಯ ಕೊಳೆರೋಗದ (Phytophthora Fruit Rot) ಬಗ್ಗೆ:
+
+**ಲಕ್ಷಣಗಳು:** ಗೊಂಚಲುಗಳು ಕಪ್ಪಾಗುತ್ತವೆ, ಮಾನ್ಸೂನ್ ಸಮಯದಲ್ಲಿ ಕಾಯಿಗಳು ಉದುರುತ್ತವೆ
+
+**ಚಿಕಿತ್ಸೆ:**
+• ಜೂನ್-ಜುಲೈನಲ್ಲಿ ಗೊಂಚಲು + ಕಾಂಡದ ಮೇಲೆ **ಬೋರ್ಡೋ ಮಿಶ್ರಣ 1%** ಸಿಂಪಡಿಸಿ
+• ಗಂಭೀರ ಸಮಸ್ಯೆ: **Metalaxyl + Mancozeb 3g/L** ನೀರಿನಲ್ಲಿ ಬೇರಿಗೆ ಸುರಿಯಿರಿ
+• ರೋಗಗ್ರಸ್ತ ಗೊಂಚಲುಗಳನ್ನು ತೆಗೆದು ಸುಡಿರಿ
+
+**ತಡೆಗಟ್ಟುವಿಕೆ:** ಮಾನ್ಸೂನ್ ಪ್ರಾರಂಭವಾಗುವ ಮೊದಲು (ಮೇ ಕೊನೆಯಲ್ಲಿ) ಬೋರ್ಡೋ ಮಿಶ್ರಣ ಸಿಂಪಡಿಸಿ
+ಸಿಂಪಡಣೆ ಸಮಯ: 6–9 AM | ಕೈಗವಸು + ಮಾಸ್ಕ್ ಧರಿಸಿ
+
+ಸಹಾಯ: ಅಡಕೆ ಸಂಶೋಧನಾ ಕೇಂದ್ರ, ವಿಟ್ಲ, ಕರ್ನಾಟಕ
+📞 ಕಿಸಾನ್ ಕಾಲ್ ಸೆಂಟರ್: 1800-180-1551 (ಉಚಿತ)""",
+
+    "arecanut_fertilizer": """ನಮಸ್ಕಾರ ರೈತ ಅಣ್ಣ! ಅಡಕೆಯ ಗೊಬ್ಬರದ ಬಗ್ಗೆ:
+
+**ಅಡಕೆ (ಫಲಿಸುವ ಮರ/ವರ್ಷಕ್ಕೆ):**
+• ಯೂರಿಯಾ 200g + SSP 130g + MOP 130g + ಎಫ್‌ವೈಎಂ 12kg ಪ್ರತಿ ಮರಕ್ಕೆ
+• **ಎರಡು ಸಲ ಹಾಕಿ: ಜೂನ್ ಮತ್ತು ಸೆಪ್ಟೆಂಬರ್**
+• ಬೋರಾಕ್ಸ್ 25g ಪ್ರತಿ ಮರಕ್ಕೆ (ಸೂಕ್ಷ್ಮ ಪೋಷಕಾಂಶ)
+• ಮರದಿಂದ 1 ಮೀಟರ್ ದೂರದಲ್ಲಿ ವೃತ್ತಾಕಾರವಾಗಿ ಹಾಕಿ ಮಣ್ಣು ಹಾಕಿ
+
+**ಪ್ರಮುಖ ಗೊಬ್ಬರಗಳು:**
+• ಯೂರಿಯಾ = ಸಾರಜನಕ (N) — ಬೆಳವಣಿಗೆ + ಹಸಿರು ಬಣ್ಣ
+• SSP/DAP = ರಂಜಕ (P) — ಬೇರು + ಹೂವುಗಳು
+• MOP = ಪೊಟ್ಯಾಶ್ (K) — ಕಾಯಿ ಗಾತ್ರ + ರೋಗ ನಿರೋಧಕತೆ
+
+ಉಚಿತ ಮಣ್ಣು ಪರೀಕ್ಷೆ (Soil Health Card) KVK ಯಿಂದ ಪಡೆಯಿರಿ
+📞 ಕಿಸಾನ್ ಕಾಲ್ ಸೆಂಟರ್: 1800-180-1551 (ಉಚಿತ)""",
+
+    "market_price_arecanut": """ನಮಸ್ಕಾರ ರೈತ ಅಣ್ಣ! ಅಡಕೆ ಬೆಲೆ ಮಾಹಿತಿ:
+
+**ಅಡಕೆ (ಚಾಳಿ) — ಪ್ರಸ್ತುತ ಮಾರುಕಟ್ಟೆ ಬೆಲೆ:**
+• **₹36,000 ರಿಂದ ₹52,000/ಕ್ವಿಂಟಾಲ್**
+• ಉತ್ತಮ ಮಾರುಕಟ್ಟೆ: ಶಿವಮೊಗ್ಗ APMC (ಭಾರತದ ಅತಿದೊಡ್ಡ ಅಡಕೆ ಮಾರುಕಟ್ಟೆ)
+• CAMPCO ಸಹಕಾರ ಸಂಸ್ಥೆಯು ನ್ಯಾಯಯುತ ಬೆಲೆ ನೀಡುತ್ತದೆ
+
+**ಉತ್ತಮ ಮಾರಾಟ ಸಮಯ:** ಮಾರ್ಚ್–ಜೂನ್ (ಬೆಲೆ ಅತ್ಯುನ್ನತ ಮಟ್ಟದಲ್ಲಿರುತ್ತದೆ)
+
+**ಬೆಲೆ ಪರೀಕ್ಷಿಸಿ:**
+• agmarknet.nic.in — ಲೈವ್ APMC ಬೆಲೆಗಳು
+• e-NAM ಅಪ್ಲಿಕೇಶನ್
+• ಕಿಸಾನ್ ಸುವಿಧಾ ಅಪ್ಲಿಕೇಶನ್
+
+📞 ಕಿಸಾನ್ ಕಾಲ್ ಸೆಂಟರ್: 1800-180-1551 (ಉಚಿತ)""",
+}
+
+_FULL_ANSWERS_HI = {
+    "fertilizer_general": """नमस्ते किसान भाई! खाद/उर्वरक की जानकारी:
+
+**प्रमुख उर्वरक और उनका उपयोग:**
+• **यूरिया (46% N)** → पौधों को हरा और लंबा बनाता है। टॉप-ड्रेसिंग के रूप में डालें।
+• **DAP (18-46-0)** → फॉस्फोरस — जड़ों की मजबूती और शुरुआती विकास के लिए।
+• **MOP (0-0-60)** → पोटाश — बड़े फल, रोग प्रतिरोधक क्षमता।
+• **SSP (0-16-0+S)** → फॉस्फोरस + सल्फर का सस्ता स्रोत।
+• **NPK 17:17:17** → संतुलित — सभी चरणों में उपयोगी।
+• **गोबर खाद/कम्पोस्ट** → मिट्टी की सेहत सुधारता है।
+
+**महत्वपूर्ण नियम:**
+• पहले मिट्टी की जांच करें — ज्यादा खाद नुकसानदायक है
+• 2–3 बार में डालें — अच्छा अवशोषण, कम बर्बादी
+• बारिश से पहले नहीं डालें — बह जाएगा
+
+📞 किसान कॉल सेंटर: 1800-180-1551 (निःशुल्क)""",
+
+    "pm_kisan": """नमस्ते किसान भाई! PM-KISAN योजना की जानकारी:
+
+**PM-KISAN — प्रधानमंत्री किसान सम्मान निधि:**
+
+**लाभ:** ₹6,000 प्रति वर्ष — तीन किस्तों में ₹2,000 प्रत्येक
+
+**कौन पात्र है:**
+• सभी भूमि धारक किसान जिनके पास आधार है
+
+**आवेदन कैसे करें:**
+• ऑनलाइन: **pmkisan.gov.in** पर जाएं
+• नजदीकी **CSC (कॉमन सर्विस सेंटर)** पर जाएं
+• ले जाएं: आधार + बैंक पासबुक + जमीन के दस्तावेज
+
+**स्थिति जांचें:** pmkisan.gov.in पर अपना आधार नंबर डालकर
+
+हेल्पलाइन: **155261**
+📞 किसान कॉल सेंटर: 1800-180-1551 (निःशुल्क)""",
+}
+
+
+def _localize_answer(answer: str, lang: str, message: str = "") -> str:
     """
-    Prefix the English answer with a native-language section header,
-    and append a native-language helpline footer.
-    No IBM needed — works fully offline.
+    Full localization for top common questions; greeting + English + footer for others.
+    Kannada and Hindi have most common answers fully translated.
     """
     if lang == "en":
         return answer
 
-    intent = detect_intent(answer[:200])  # detect from first 200 chars of answer
+    m = message.lower()
 
-    # Pick the right header based on intent
+    # ── Check for fully-translated answers ────────────────────────────────────
+    if lang == "kn":
+        if any(w in m for w in ["koleroga", "areca", "arecanut", "bunch rot"]):
+            return _FULL_ANSWERS_KN.get("koleroga", "")
+        if any(w in m for w in ["arecanut", "adake"]) and any(w in m for w in ["fertilizer", "urea", "gobbara"]):
+            return _FULL_ANSWERS_KN.get("arecanut_fertilizer", "")
+        if any(w in m for w in ["price", "bele", "market"]) and any(w in m for w in ["arecanut", "adake", "supari"]):
+            return _FULL_ANSWERS_KN.get("market_price_arecanut", "")
+    elif lang == "hi":
+        if any(w in m for w in ["fertilizer", "urea", "khad", "gobar"]) and not any(crop in m for crop in ["paddy", "wheat", "banana"]):
+            return _FULL_ANSWERS_HI.get("fertilizer_general", "")
+        if any(w in m for w in ["pm-kisan", "pmkisan", "6000", "income support", "yojana"]):
+            return _FULL_ANSWERS_HI.get("pm_kisan", "")
+
+    # ── Fallback: greeting + English body + footer ────────────────────────────
+    intent = detect_intent(answer[:200])
     hdr_map = _TRANSLATIONS.get("intent_hdr", {})
     hdr = hdr_map.get(intent, {}).get(lang, "")
     footer = _TRANSLATIONS.get("note", {}).get(lang, "")
 
-    # Build native-language greeting line
     greet_map = {
-        "hi": "🌿 **नमस्ते किसान भाई!** आपके सवाल का जवाब नीचे है:\n\n",
-        "kn": "🌿 **ನಮಸ್ಕಾರ ರೈತ ಅಣ್ಣ!** ನಿಮ್ಮ ಪ್ರಶ್ನೆಗೆ ಉತ್ತರ ಕೆಳಗೆ ಇದೆ:\n\n",
-        "ta": "🌿 **வணக்கம் விவசாயி!** உங்கள் கேள்விக்கு பதில் கீழே உள்ளது:\n\n",
-        "te": "🌿 **నమస్కారం రైతు అన్నా!** మీ ప్రశ్నకు సమాధానం క్రింద ఉంది:\n\n",
-        "mr": "🌿 **नमस्कार शेतकरी बंधू!** तुमच्या प्रश्नाचे उत्तर खाली आहे:\n\n",
+        "hi": "नमस्ते किसान भाई! आपके सवाल का जवाब:\n\n",
+        "kn": "ನಮಸ್ಕಾರ ರೈತ ಅಣ್ಣ! ನಿಮ್ಮ ಪ್ರಶ್ನೆಗೆ ಉತ್ತರ:\n\n",
+        "ta": "வணக்கம் விவசாயி! உங்கள் கேள்விக்கு பதில்:\n\n",
+        "te": "నమస్కారం రైతు అన్నా! మీ ప్రశ್నకు సమాధానం:\n\n",
+        "mr": "नमस्कार शेतकरी बंधू! तुमच्या प्रश्नाचे उत्तर:\n\n",
     }
     greet = greet_map.get(lang, "")
 
-    parts = []
-    if greet:
-        parts.append(greet)
-    if hdr:
-        parts.append(hdr + "\n\n")
-    parts.append(answer)
-    if footer:
-        parts.append(footer)
-
-    return "".join(parts)
+    parts = [greet, hdr + "\n\n" if hdr else "", answer, footer if footer else ""]
+    return "".join([p for p in parts if p])
 
 
 async def ask_granite(message: str) -> str:
@@ -1349,7 +1444,7 @@ ANSWER:"""
 
     # ── Fallback: smart_answer + native-language wrapping (no IBM needed) ────
     answer = smart_answer(clean_msg)
-    return _localize_answer(answer, lang)
+    return _localize_answer(answer, lang, clean_msg)
 
 
 # ── API ────────────────────────────────────────────────────────────────────────
