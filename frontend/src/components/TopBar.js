@@ -4,7 +4,7 @@ import { useAuth }   from '../context/AuthContext';
 import { useFarmer } from '../context/FarmerContext';
 import './TopBar.css';
 
-const LANG_LABELS = { en: '🇬🇧 EN', hi: '🇮🇳 HI', kn: 'ಕ KN', ta: 'த TA', te: 'తె TE' };
+const LANG_LABELS = { en: '🇬🇧 EN', hi: '🇮🇳 HI', kn: 'ಕ KN' };
 
 export default function TopBar({ onMenuClick }) {
   const { user }                     = useAuth();

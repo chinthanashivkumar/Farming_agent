@@ -41,24 +41,27 @@ class RAGPipeline:
         where_filter = {"category": intent} if intent else None
         retrieved_docs = semantic_search(english_query, where=where_filter)
 
-        # Step 4: Build prompt
+        # Step 4: Build prompt (pass language so LLM is told to reply in it directly)
         prompt = build_prompt(
             query=english_query,
             retrieved_docs=retrieved_docs,
             intent=intent,
             farmer_context=farmer_context or {},
+            language=detected_lang,
         )
         logger.debug(f"Prompt length: {len(prompt)} chars, docs retrieved: {len(retrieved_docs)}")
 
         # Step 5: Generate response
         english_response = generate_response(prompt)
 
-        # Step 6: Translate response back
-        final_response = (
-            translate_from_english(english_response, detected_lang)
-            if detected_lang != "en"
-            else english_response
-        )
+        # Step 6: The LLM was already instructed to reply in the target language via the
+        # prompt, so we only attempt translation as a best-effort fallback when the LLM
+        # returns an English-looking answer despite the instruction.
+        final_response = english_response
+        if detected_lang != "en":
+            from app.utils.language_utils import looks_english
+            if looks_english(english_response):
+                final_response = translate_from_english(english_response, detected_lang)
 
         # Step 7: Format sources
         sources = [

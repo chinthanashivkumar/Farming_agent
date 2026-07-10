@@ -83,18 +83,30 @@ def format_farmer_context(ctx: Dict[str, Any]) -> str:
     return " | ".join(parts) if parts else "No detailed farmer context provided."
 
 
+LANGUAGE_INSTRUCTIONS = {
+    "en": "Respond ONLY in English.",
+    "hi": "Respond ONLY in Hindi (हिंदी में उत्तर दें). Use Devanagari script throughout.",
+    "kn": "Respond ONLY in Kannada (ಕನ್ನಡದಲ್ಲಿ ಉತ್ತರಿಸಿ). Use Kannada script throughout.",
+}
+
+
 def build_prompt(
     query: str,
     retrieved_docs: List[Dict[str, Any]],
     intent: str = "general",
     farmer_context: Dict[str, Any] = None,
+    language: str = "en",
 ) -> str:
     """Construct full LLM prompt for IBM Granite optimized for Indian farming context."""
     task_instruction = INTENT_PROMPTS.get(intent or "general", INTENT_PROMPTS["general"])
     context_str = format_retrieved_docs(retrieved_docs)
     farmer_str = format_farmer_context(farmer_context or {})
+    lang_instruction = LANGUAGE_INSTRUCTIONS.get(language or "en", LANGUAGE_INSTRUCTIONS["en"])
 
     prompt = f"""{SYSTEM_INSTRUCTION}
+
+LANGUAGE INSTRUCTION (CRITICAL — follow this above everything else):
+{lang_instruction}
 
 ═══════════════════════════════════════════════════════════════
 
@@ -114,6 +126,6 @@ FARMER'S QUESTION:
 
 ═══════════════════════════════════════════════════════════════
 
-YOUR ANSWER (in simple, practical language suitable for Indian farmers):
+YOUR ANSWER ({lang_instruction}):
 """
     return prompt.strip()

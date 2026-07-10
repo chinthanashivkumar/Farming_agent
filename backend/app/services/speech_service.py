@@ -11,7 +11,7 @@ from app.core.config import settings
 
 def text_to_speech(text: str, language: str = "en") -> str:
     """Convert text to speech, return base64-encoded MP3."""
-    LANG_MAP = {"en": "en", "hi": "hi", "kn": "kn", "ta": "ta", "te": "te"}
+    LANG_MAP = {"en": "en", "hi": "hi", "kn": "kn"}
     tts_lang = LANG_MAP.get(language, "en")
 
     try:
@@ -32,8 +32,6 @@ def speech_to_text(audio_bytes: bytes, language: str = "en-IN") -> str:
         "en": "en-IN",
         "hi": "hi-IN",
         "kn": "kn-IN",
-        "ta": "ta-IN",
-        "te": "te-IN",
     }
     recognizer_lang = LANG_MAP.get(language, "en-IN")
 

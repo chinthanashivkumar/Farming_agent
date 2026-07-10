@@ -4,16 +4,46 @@ import { useFarmer } from '../context/FarmerContext';
 import toast from 'react-hot-toast';
 import './ChatPage.css';
 
-const QUICK_PROMPTS = [
-  '🌾 What crop should I grow this monsoon?',
-  '🍅 Today\'s tomato mandi price?',
-  '🐛 Yellow spots on my cotton leaves',
-  '💧 How much water does paddy need?',
-  '🧪 Which fertilizer for wheat at sowing?',
-  '🌤️ Will it rain tomorrow?',
-  '📈 Which crop is most profitable this season?',
-  '🌱 My soil pH is 5.5 — what to grow?',
-];
+// Quick prompts in each supported language
+const QUICK_PROMPTS = {
+  en: [
+    '🌾 What crop should I grow this monsoon?',
+    '🍅 Today\'s tomato mandi price?',
+    '🐛 Yellow spots on my cotton leaves',
+    '💧 How much water does paddy need?',
+    '🧪 Which fertilizer for wheat at sowing?',
+    '📈 Which crop is most profitable this season?',
+    '🌱 My soil pH is 5.5 — what to grow?',
+    '🌤️ What are signs of nitrogen deficiency?',
+  ],
+  hi: [
+    '🌾 इस मानसून में कौन सी फसल उगाऊं?',
+    '🍅 आज टमाटर का मंडी भाव क्या है?',
+    '🐛 मेरी कपास की पत्तियों पर पीले धब्बे हैं',
+    '💧 धान को कितना पानी चाहिए?',
+    '🧪 गेहूं बोते समय कौन सी खाद दें?',
+    '📈 इस सीजन में कौन सी फसल सबसे फायदेमंद है?',
+    '🌱 मेरी मिट्टी का pH 5.5 है — क्या उगाएं?',
+    '🌤️ नाइट्रोजन की कमी के क्या लक्षण हैं?',
+  ],
+  kn: [
+    '🌾 ಈ ಮಳೆಗಾಲದಲ್ಲಿ ಯಾವ ಬೆಳೆ ಬೆಳೆಯಬೇಕು?',
+    '🍅 ಇಂದಿನ ಟೊಮಾಟೊ ಮಂಡಿ ಬೆಲೆ ಏನು?',
+    '🐛 ನನ್ನ ಹತ್ತಿ ಎಲೆಗಳಲ್ಲಿ ಹಳದಿ ಚುಕ್ಕೆಗಳಿವೆ',
+    '💧 ಭತ್ತಕ್ಕೆ ಎಷ್ಟು ನೀರು ಬೇಕು?',
+    '🧪 ಗೋಧಿ ಬಿತ್ತನೆ ಸಮಯದಲ್ಲಿ ಯಾವ ರಸಗೊಬ್ಬರ?',
+    '📈 ಈ ಋತುವಿನಲ್ಲಿ ಯಾವ ಬೆಳೆ ಹೆಚ್ಚು ಲಾಭದಾಯಕ?',
+    '🌱 ನನ್ನ ಮಣ್ಣಿನ pH 5.5 — ಏನು ಬೆಳೆಯಬಹುದು?',
+    '🌤️ ಸಾರಜನಕ ಕೊರತೆಯ ಲಕ್ಷಣಗಳೇನು?',
+  ],
+};
+
+// Language codes for the Web Speech API
+const SPEECH_LANG_MAP = {
+  en: 'en-IN',
+  hi: 'hi-IN',
+  kn: 'kn-IN',
+};
 
 function formatTime(iso) {
   if (!iso) return '';
@@ -46,8 +76,9 @@ export default function ChatPage() {
   const [isRecording, setIsRecording] = useState(false);
   const messagesEndRef = useRef(null);
   const textareaRef    = useRef(null);
-  const mediaRecorderRef = useRef(null);
-  const audioChunksRef   = useRef([]);
+  const recognitionRef = useRef(null);   // Web Speech API instance
+
+  const prompts = QUICK_PROMPTS[language] || QUICK_PROMPTS.en;
 
   // ── Load sessions ────────────────────────────────
   const loadSessions = useCallback(async () => {
@@ -80,6 +111,16 @@ export default function ChatPage() {
     ta.style.height = Math.min(ta.scrollHeight, 140) + 'px';
   }, [input]);
 
+  // ── Clean up speech recognition on unmount ───────
+  useEffect(() => {
+    return () => {
+      if (recognitionRef.current) {
+        recognitionRef.current.abort();
+        recognitionRef.current = null;
+      }
+    };
+  }, []);
+
   // ── Build farmer context from profile ─────────────
   const buildContext = () => ({
     location:        profile?.district ? `${profile.district}, ${profile.state}` : undefined,
@@ -95,7 +136,6 @@ export default function ChatPage() {
     const msg = (text || input).trim();
     if (!msg || loading) return;
 
-    // Optimistically add user message
     const optimisticUser = { id: Date.now(), role: 'user', content: msg, created_at: new Date().toISOString() };
     setMessages(prev => [...prev, optimisticUser]);
     setInput('');
@@ -110,7 +150,6 @@ export default function ChatPage() {
       };
       const res = await chatService.send(payload);
 
-      // If new session created, update active and reload list
       if (!activeSession) {
         setActiveSession({ id: res.data.session_id, title: msg.slice(0, 50) });
         loadSessions();
@@ -131,39 +170,75 @@ export default function ChatPage() {
     } finally { setLoading(false); }
   };
 
-  // ── Voice recording ───────────────────────────────
-  const toggleRecording = async () => {
+  // ── Voice recording — Web Speech API (browser-native, no backend) ─────────
+  const toggleRecording = () => {
+    // Stop any ongoing recording
     if (isRecording) {
-      mediaRecorderRef.current?.stop();
+      recognitionRef.current?.stop();
       setIsRecording(false);
       return;
     }
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mr = new MediaRecorder(stream);
-      audioChunksRef.current = [];
-      mr.ondataavailable = e => audioChunksRef.current.push(e.data);
-      mr.onstop = async () => {
-        stream.getTracks().forEach(t => t.stop());
-        const blob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
-        const form = new FormData();
-        form.append('audio', blob, 'voice.webm');
-        form.append('language', language);
-        try {
-          const res = await speechService.stt(form);
-          if (res.data.transcript) { setInput(res.data.transcript); toast.success('Voice captured!'); }
-          else toast.error('Could not understand audio');
-        } catch { toast.error('Voice transcription failed'); }
-      };
-      mr.start();
-      mediaRecorderRef.current = mr;
+
+    const SpeechRecognition =
+      window.SpeechRecognition || window.webkitSpeechRecognition;
+
+    if (!SpeechRecognition) {
+      toast.error('Speech recognition is not supported in this browser. Try Chrome or Edge.');
+      return;
+    }
+
+    const recognition = new SpeechRecognition();
+    recognition.lang = SPEECH_LANG_MAP[language] || 'en-IN';
+    recognition.interimResults = false;
+    recognition.maxAlternatives = 1;
+    recognition.continuous = false;
+
+    recognition.onstart = () => {
       setIsRecording(true);
-      toast('🎙️ Recording… tap mic to stop', { icon: '🔴', duration: 60000 });
-    } catch { toast.error('Microphone access denied'); }
+      toast('🎙️ Listening… speak now', { icon: '🔴', duration: 8000, id: 'mic-toast' });
+    };
+
+    recognition.onresult = (event) => {
+      const transcript = event.results[0][0].transcript;
+      if (transcript) {
+        setInput(prev => (prev ? prev + ' ' + transcript : transcript));
+        toast.success('Voice captured!', { id: 'mic-toast' });
+      }
+    };
+
+    recognition.onerror = (event) => {
+      setIsRecording(false);
+      recognitionRef.current = null;
+      const errorMap = {
+        'not-allowed': 'Microphone access denied. Please allow mic in browser settings.',
+        'no-speech': 'No speech detected. Please try again.',
+        'network': 'Network error during speech recognition.',
+        'aborted': null, // silently dismissed by user
+      };
+      const msg = errorMap[event.error];
+      if (msg) toast.error(msg, { id: 'mic-toast' });
+    };
+
+    recognition.onend = () => {
+      setIsRecording(false);
+      recognitionRef.current = null;
+    };
+
+    recognitionRef.current = recognition;
+    recognition.start();
   };
 
   // ── Text-to-speech for AI messages ───────────────
   const speakMessage = async (text) => {
+    // Try Web Speech API first (instant, no backend cost)
+    if (window.speechSynthesis) {
+      window.speechSynthesis.cancel();
+      const utter = new SpeechSynthesisUtterance(text);
+      utter.lang = SPEECH_LANG_MAP[language] || 'en-IN';
+      window.speechSynthesis.speak(utter);
+      return;
+    }
+    // Fallback to backend gTTS
     try {
       const res = await speechService.tts(text, language);
       if (res.data.audio_base64) {
@@ -208,7 +283,7 @@ export default function ChatPage() {
 
         <div className="quick-prompts">
           <p className="quick-prompts-title">Try asking</p>
-          {QUICK_PROMPTS.slice(0, 5).map(q => (
+          {prompts.slice(0, 5).map(q => (
             <button key={q} className="quick-prompt-chip" onClick={() => sendMessage(q)}>
               {q}
             </button>
@@ -234,10 +309,10 @@ export default function ChatPage() {
           {messages.length === 0 && !loading && (
             <div className="chat-welcome">
               <div className="chat-welcome-icon">🌾</div>
-              <h2>Hi {profile ? (profile.state ? `from ${profile.state}` : '') : ''}, I'm your Farming AI!</h2>
-              <p>Ask me anything about crops, soil, pests, market prices, or irrigation — in any Indian language.</p>
+              <h2>Hi {profile?.state ? `from ${profile.state}` : ''}, I'm your Farming AI!</h2>
+              <p>Ask me anything about crops, soil, pests, market prices, or irrigation.</p>
               <div className="chat-welcome-chips">
-                {QUICK_PROMPTS.map(q => (
+                {prompts.map(q => (
                   <button key={q} className="welcome-chip" onClick={() => sendMessage(q)}>{q}</button>
                 ))}
               </div>
