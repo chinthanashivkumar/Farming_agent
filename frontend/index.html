@@ -256,16 +256,6 @@ body{font-family:-apple-system,"Segoe UI",system-ui,"Noto Sans Devanagari",sans-
 .lang-btn:hover{background:rgba(255,255,255,.18);color:#fff}
 .lang-btn.active{background:var(--green-mid);border-color:var(--green-mid);color:#fff;box-shadow:0 2px 6px rgba(0,0,0,.2)}
 
-/* Mic button */
-#mic-btn{
-  width:38px;height:38px;border-radius:10px;border:1.5px solid var(--border);
-  background:var(--white);font-size:1rem;cursor:pointer;flex-shrink:0;
-  display:flex;align-items:center;justify-content:center;transition:all .15s;
-}
-#mic-btn:hover{background:var(--green-lt);border-color:var(--green)}
-#mic-btn.recording{background:#fee2e2;border-color:#dc2626;animation:mic-pulse 1s infinite}
-@keyframes mic-pulse{0%,100%{box-shadow:0 0 0 0 rgba(220,38,38,.4)}50%{box-shadow:0 0 0 6px rgba(220,38,38,0)}}
-
 /* Speak button on AI bubble */
 .speak-btn{
   background:none;border:none;cursor:pointer;font-size:.85rem;padding:2px 5px;
@@ -466,7 +456,6 @@ body{font-family:-apple-system,"Segoe UI",system-ui,"Noto Sans Devanagari",sans-
 
       <div id="chat-input-area">
         <div id="input-row">
-          <button id="mic-btn" onclick="toggleVoice()" title="Voice input">🎤</button>
           <textarea id="msg-input" placeholder="Ask about arecanut, coconut, paddy, banana, turmeric… (Enter to send)" rows="1"></textarea>
           <button id="send-btn" onclick="sendMessage()">➤</button>
         </div>
@@ -1276,143 +1265,6 @@ function speakText(btn) {
   else { window.speechSynthesis.onvoiceschanged = _doSpeak; }
 }
 
-// ── Voice Input (Speech-to-Text) ──────────────────────────────
-let _recog         = null;
-let _recogActive   = false;
-let _micStopped    = false;   // true when user taps stop — prevents auto-send
-let _accumulated   = '';      // all final transcript text so far
-
-function _voiceToast(msg, color) {
-  const old = document.getElementById('_vt');
-  if (old) old.remove();
-  const t = document.createElement('div');
-  t.id = '_vt';
-  t.textContent = msg;
-  t.style.cssText = `position:fixed;bottom:84px;left:50%;transform:translateX(-50%);
-    background:${color||'#1b5226'};color:#fff;padding:10px 22px;border-radius:20px;
-    font-size:.85rem;font-weight:700;z-index:9999;box-shadow:0 4px 16px rgba(0,0,0,.3);
-    max-width:92vw;text-align:center;pointer-events:none`;
-  document.body.appendChild(t);
-  setTimeout(() => { if (t.parentNode) t.remove(); }, 3200);
-}
-
-function _resetMic() {
-  const btn = document.getElementById('mic-btn');
-  if (btn) { btn.classList.remove('recording'); btn.textContent = '🎤'; btn.title = 'Voice input'; }
-  _recogActive = false;
-}
-
-function toggleVoice() {
-  const ta  = document.getElementById('msg-input');
-  const btn = document.getElementById('mic-btn');
-  const PH  = 'Ask about arecanut, coconut, paddy, banana, turmeric… (Enter to send)';
-
-  // ── STOP: user tapped the ⏹ button ─────────────────────────
-  if (_recogActive) {
-    _micStopped = true;
-    if (_recog) {
-      try { _recog.stop(); } catch(_){}   // stop() → triggers onresult with final, then onend
-    }
-    // onend will handle sending the transcript
-    return;
-  }
-
-  // ── Browser support ────────────────────────────────────────
-  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if (!SR) {
-    _voiceToast('Voice input needs Chrome or Edge browser', '#dc2626');
-    return;
-  }
-
-  // ── Clean up stale instance ────────────────────────────────
-  if (_recog) { try { _recog.abort(); } catch(_){} _recog = null; }
-
-  _accumulated = '';
-  _micStopped  = false;
-
-  _recog = new SR();
-  // Use the selected UI language for speech recognition
-  const langMap = { en: 'en-IN', hi: 'hi-IN', kn: 'kn' };
-  _recog.lang            = langMap[currentLang] || 'en-IN';
-  _recog.continuous      = true;      // keep listening until user taps stop
-  _recog.interimResults  = true;      // show live preview as user speaks
-  _recog.maxAlternatives = 1;
-
-  // ── onstart ────────────────────────────────────────────────
-  _recog.onstart = () => {
-    _recogActive = true;
-    btn.classList.add('recording');
-    btn.textContent = '⏹';
-    btn.title = 'Tap to stop recording';
-    ta.value = '';
-    ta.placeholder = 'Listening… speak your question';
-    _voiceToast('Listening… speak now. Tap ⏹ when done.', '#1b5226');
-  };
-
-  // ── onresult — build transcript from all results ──────────
-  _recog.onresult = (e) => {
-    let finalText   = '';
-    let interimText = '';
-    for (let i = 0; i < e.results.length; i++) {
-      const t = e.results[i][0].transcript;
-      if (e.results[i].isFinal) { finalText   += t + ' '; }
-      else                       { interimText += t; }
-    }
-    _accumulated = finalText.trim();
-    // Show final text if available, else show interim preview
-    ta.value = _accumulated || interimText;
-  };
-
-  // ── onerror ────────────────────────────────────────────────
-  _recog.onerror = (e) => {
-    const silent = ['aborted', 'no-speech'];
-    if (!silent.includes(e.error)) {
-      const msgs = {
-        'not-allowed':        'Microphone blocked — click the mic icon in your browser address bar and allow',
-        'service-not-allowed':'Microphone blocked — allow mic permission in browser settings',
-        'network':            'Network error — check your internet connection',
-        'audio-capture':      'No microphone found — plug in a mic and try again',
-      };
-      _voiceToast(msgs[e.error] || ('Voice error: ' + e.error), '#dc2626');
-    }
-    _resetMic();
-    ta.placeholder = PH;
-  };
-
-  // ── onend — fires after stop() is called ──────────────────
-  _recog.onend = () => {
-    _resetMic();
-    ta.placeholder = PH;
-    // When user tapped stop → send whatever was captured
-    if (_micStopped) {
-      const text = _accumulated.trim() || ta.value.trim();
-      if (text) {
-        ta.value = text;
-        ta.focus();
-        _voiceToast('Got it! Sending…', '#1b5226');
-        setTimeout(() => sendMessage(), 400);
-      } else {
-        _voiceToast('Nothing captured — tap mic and speak clearly', '#d97706');
-      }
-      return;
-    }
-    // Auto-ended (browser timeout) → also send if we have text
-    const text = _accumulated.trim() || ta.value.trim();
-    if (text) {
-      ta.value = text;
-      ta.focus();
-      setTimeout(() => sendMessage(), 400);
-    }
-  };
-
-  // ── start ─────────────────────────────────────────────────
-  try {
-    _recog.start();
-  } catch (err) {
-    _voiceToast('Could not start microphone: ' + err.message, '#dc2626');
-    _resetMic();
-  }
-}
 </script>
 </body>
 </html>
