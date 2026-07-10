@@ -961,24 +961,26 @@ function setInput(txt) { const ta=document.getElementById('msg-input'); ta.value
 
 async function sendMessage(text) {
   const ta = document.getElementById('msg-input');
-  const msg = (text || ta.value).trim();
-  if (!msg) return;
+  const rawMsg = (text || ta.value).trim();
+  if (!rawMsg) return;
   ta.value = ''; ta.style.height = 'auto';
 
-  // Hide welcome
-  document.getElementById('chat-welcome').style.display = 'none';
+  // Add language instruction to what we send to backend
+  const instr = (typeof LANG_INSTRUCTION !== 'undefined') ? LANG_INSTRUCTION[currentLang] : '';
+  const apiMsg = instr ? rawMsg + '\n[' + instr + ']' : rawMsg;
 
-  addBubble('user', msg);
+  document.getElementById('chat-welcome').style.display = 'none';
+  addBubble('user', rawMsg);
   const typingEl = addTyping();
   setBtnLoading('send-btn', true);
 
   try {
     const res = await fetch(API+'/chat', {
-      method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({message:msg})
+      method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({message:apiMsg})
     });
     const data = await res.json();
     typingEl.remove();
-    addBubble('ai', data.reply || 'Sorry, I could not get a response.');
+    addBubble('ai', data.reply || 'Sorry, I could not get a response.', true);
   } catch(e) {
     typingEl.remove();
     addBubble('ai', '⚠️ **Could not reach backend.**\n\nMake sure you ran:\n```\npip install fastapi uvicorn python-dotenv httpx\npython main.py\n```');
@@ -987,13 +989,20 @@ async function sendMessage(text) {
   }
 }
 
-function addBubble(role, text) {
+function addBubble(role, text, withSpeak) {
   const msgs = document.getElementById('chat-messages');
   const row = document.createElement('div');
   row.className = `msg-row ${role}`;
+  const cleanText = text.replace(/"/g,'&quot;').replace(/\*/g,'');
+  const speakBtn = (role === 'ai' && withSpeak)
+    ? `<button class="speak-btn" onclick="speakText(this)" data-text="${cleanText}" title="Listen aloud">🔊</button>`
+    : '';
   row.innerHTML = `
     <div class="msg-av ${role}">${role==='ai'?'🌿':'👤'}</div>
-    <div class="bubble">${formatText(text)}</div>`;
+    <div style="display:flex;flex-direction:column;gap:4px;min-width:0">
+      <div class="bubble">${formatText(text)}</div>
+      ${speakBtn ? `<div>${speakBtn}</div>` : ''}
+    </div>`;
   msgs.appendChild(row);
   msgs.scrollTop = msgs.scrollHeight;
   return row;
@@ -1219,60 +1228,6 @@ window.addEventListener('DOMContentLoaded', () => {
   const saved = localStorage.getItem('kisanLang') || 'en';
   setLang(saved);
 });
-
-// Override sendMessage to prepend language instruction
-const _origSendMessage = sendMessage;
-async function sendMessage(text) {
-  const ta = document.getElementById('msg-input');
-  let msg = (text || ta.value).trim();
-  if (!msg) return;
-  const instr = LANG_INSTRUCTION[currentLang];
-  const apiMsg = instr ? msg + '\n[' + instr + ']' : msg;
-  // Temporarily replace textarea value so addBubble shows clean user text
-  ta.value = msg;
-  // Call original but intercept the fetch
-  ta.value = ''; ta.style.height = 'auto';
-  document.getElementById('chat-welcome').style.display = 'none';
-  addBubble('user', msg);
-  const typingEl = addTyping();
-  setBtnLoading('send-btn', true);
-  try {
-    const res = await fetch(API + '/chat', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ message: apiMsg })
-    });
-    const data = await res.json();
-    typingEl.remove();
-    const reply = data.reply || 'Sorry, no response.';
-    addBubble('ai', reply, true);  // true = add speak button
-  } catch(e) {
-    typingEl.remove();
-    addBubble('ai', '⚠️ **Could not reach backend.**\n\nMake sure you ran:\n```\npython main.py\n```');
-  } finally {
-    setBtnLoading('send-btn', false);
-  }
-}
-
-// Override addBubble to support speak button on AI replies
-const _origAddBubble = addBubble;
-function addBubble(role, text, withSpeak) {
-  const msgs = document.getElementById('chat-messages');
-  const row = document.createElement('div');
-  row.className = 'msg-row ' + role;
-  const speakBtn = (role === 'ai' && withSpeak)
-    ? `<button class="speak-btn" onclick="speakText(this)" data-text="${text.replace(/"/g,'&quot;').replace(/\*/g,'')}" title="Listen">🔊</button>`
-    : '';
-  row.innerHTML = `
-    <div class="msg-av ${role}">${role === 'ai' ? '🌿' : '👤'}</div>
-    <div style="display:flex;flex-direction:column;gap:4px">
-      <div class="bubble">${formatText(text)}</div>
-      ${speakBtn ? `<div style="text-align:left">${speakBtn}</div>` : ''}
-    </div>`;
-  msgs.appendChild(row);
-  msgs.scrollTop = msgs.scrollHeight;
-  return row;
-}
 
 // ── Text-to-Speech ────────────────────────────────────────────
 function speakText(btn) {

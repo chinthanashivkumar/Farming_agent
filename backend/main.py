@@ -1152,12 +1152,59 @@ async def get_iam_token() -> str:
     return _tok["token"]
 
 
+def _extract_lang(message: str):
+    """Pull out the language instruction appended by the frontend, return (clean_msg, lang_code)."""
+    import re
+    lang_map = {
+        "hindi": "hi", "हिंदी": "hi",
+        "kannada": "kn", "ಕನ್ನಡ": "kn",
+        "tamil": "ta", "தமிழ்": "ta",
+        "telugu": "te", "తెలుగు": "te",
+        "marathi": "mr", "मराठी": "mr",
+    }
+    lang = "en"
+    clean = message
+    # Look for [Please reply in X ...] tag appended by frontend
+    match = re.search(r'\[Please reply in (\w+)', message, re.IGNORECASE)
+    if match:
+        word = match.group(1).lower()
+        for key, code in lang_map.items():
+            if key in word or word in key:
+                lang = code
+                break
+        # Remove the tag from the message
+        clean = re.sub(r'\[Please reply in[^\]]+\]', '', message).strip()
+    return clean, lang
+
+
+# Pre-built translations for common responses (so even without IBM the farmer gets their language)
+_LANG_GREET = {
+    "hi": "नमस्ते किसान भाई! मैं आपका कृषि सलाहकार हूँ।",
+    "kn": "ನಮಸ್ಕಾರ ರೈತ ಅಣ್ಣ! ನಾನು ನಿಮ್ಮ ಕೃಷಿ ಸಲಹೆಗಾರ.",
+    "ta": "வணக்கம் விவசாயி! நான் உங்கள் வேளாண் ஆலோசகர்.",
+    "te": "నమస్కారం రైతు అన్నా! నేను మీ వ్యవసాయ సలహాదారుడిని.",
+    "mr": "नमस्कार शेतकरी बंधू! मी तुमचा कृषी सल्लागार आहे.",
+}
+_LANG_SUFFIX = {
+    "hi": "\n\n_(हिंदी में उत्तर — IBM Granite AI द्वारा अनुवादित)_",
+    "kn": "\n\n_(ಕನ್ನಡದಲ್ಲಿ ಉತ್ತರ — IBM Granite AI ಅನುವಾದ)_",
+    "ta": "\n\n_(தமிழில் பதில் — IBM Granite AI மொழிபெயர்ப்பு)_",
+    "te": "\n\n_(తెలుగులో సమాధానం — IBM Granite AI అనువాదం)_",
+    "mr": "\n\n_(मराठीत उत्तर — IBM Granite AI भाषांतर)_",
+}
+
+
 async def ask_granite(message: str) -> str:
+    # Extract language preference and clean message
+    clean_msg, lang = _extract_lang(message)
+
     # Always try IBM first if key looks real
     if WATSONX_API_KEY and "your-" not in WATSONX_API_KEY and "PASTE" not in WATSONX_API_KEY:
-        intent  = detect_intent(message)
-        context = "\n".join(KB.values())   # give full KB for best answers
-        # Use correct endpoint format depending on URL region
+        context = "\n".join(KB.values())
+        lang_instruction = ""
+        if lang != "en":
+            lang_names = {"hi":"Hindi","kn":"Kannada","ta":"Tamil","te":"Telugu","mr":"Marathi"}
+            lang_instruction = f"\nIMPORTANT: Respond entirely in {lang_names.get(lang,'English')}."
         if "dataplatform" in WATSONX_URL:
             gen_url = f"{WATSONX_URL}/ml/v1/text/generation?version=2023-05-29"
         else:
@@ -1167,12 +1214,12 @@ You know everything about: arecanut, coconut, paddy, banana, sugarcane, coffee, 
 Give a PRACTICAL, SPECIFIC answer the farmer can act on immediately.
 Use bullet points. Use simple language. Use Indian units (quintal, per acre, per palm, kg/ha).
 Mention exact product names, doses, timings where relevant.
-Reference: APMC, KVK, ICAR, MSP prices, government schemes where helpful.
+Reference: APMC, KVK, ICAR, MSP prices, government schemes where helpful.{lang_instruction}
 
 FARMING KNOWLEDGE BASE:
 {context}
 
-FARMER QUESTION: {message}
+FARMER QUESTION: {clean_msg}
 
 ANSWER:"""
         try:
@@ -1201,7 +1248,18 @@ ANSWER:"""
         except Exception as e:
             pass  # fall through to smart_answer below
 
-    return smart_answer(message)
+    # Use smart_answer with the clean message (no lang tag)
+    answer = smart_answer(clean_msg)
+    # If non-English, append a note (answer is in English since no IBM, but note the language selection)
+    if lang != "en":
+        lang_names = {"hi":"Hindi (हिन्दी)","kn":"Kannada (ಕನ್ನಡ)","ta":"Tamil (தமிழ்)","te":"Telugu (తెలుగు)","mr":"Marathi (मराठी)"}
+        note = (
+            f"\n\n---\n"
+            f"🌐 *You selected {lang_names.get(lang, lang)}. IBM Granite AI is needed for full {lang_names.get(lang, lang)} responses. "
+            f"The answer above is in English. Connect IBM WatsonX to get answers in your language.*"
+        )
+        return answer + note
+    return answer
 
 
 # ── API ────────────────────────────────────────────────────────────────────────

@@ -25,9 +25,8 @@
 Smart Farming Advisor bridges the knowledge gap for small-scale farmers by providing:
 - **Real-time AI answers** powered by IBM Granite via WatsonX AI
 - **Retrieval-Augmented Generation (RAG)** over trusted agricultural knowledge bases
-- **Weather intelligence** with farming advisories
 - **Live mandi market prices** from AgMarkNet / data.gov.in
-- **Multilingual support** (English, Hindi, Kannada, Tamil, Telugu)
+- **Multilingual support** (English, Hindi, Kannada, Tamil, Telugu, Marathi)
 - **Voice input & text-to-speech** responses
 
 ---
@@ -37,14 +36,13 @@ Smart Farming Advisor bridges the knowledge gap for small-scale farmers by provi
 | Feature               | Description |
 |-----------------------|-------------|
 | 🤖 AI Chat            | Natural language Q&A with IBM Granite + RAG citations |
-| 🌤️ Weather            | 7-day forecast with farming advisory |
 | 🌾 Crop Recommendation| Season, soil, and climate-aware crop selection |
 | 🪱 Soil Analysis      | NPK, pH analysis with improvement suggestions |
 | 🐛 Pest & Disease     | Symptom-based diagnosis + image upload |
 | 🧪 Fertilizer Advisor | Stage-wise fertilizer schedule |
 | 💧 Irrigation         | Smart irrigation calendar |
 | 📊 Market Prices      | Live mandi prices with trend charts |
-| 🌐 Multilingual       | 5 Indian language support |
+| 🌐 Multilingual       | 6 Indian language support (EN/Hindi/Kannada/Tamil/Telugu/Marathi) |
 | 🎤 Voice              | Mic input + text-to-speech output |
 
 ---
@@ -78,7 +76,6 @@ smart-farming-advisor/
 │   │   ├── api/routes/
 │   │   │   ├── auth.py          # Register / Login
 │   │   │   ├── chat.py          # Main RAG chat endpoint
-│   │   │   ├── weather.py       # OpenWeatherMap integration
 │   │   │   ├── crops.py         # Crop recommendation
 │   │   │   ├── soil.py          # Soil analysis
 │   │   │   ├── pests.py         # Pest & disease diagnosis
@@ -98,7 +95,6 @@ smart-farming-advisor/
 │   │   │   └── seed_knowledge.py # Knowledge base seeder
 │   │   ├── services/
 │   │   │   ├── llm_service.py   # IBM Granite wrapper
-│   │   │   ├── weather_service.py# OpenWeatherMap
 │   │   │   ├── market_service.py # AgMarkNet
 │   │   │   └── speech_service.py # gTTS + SpeechRecognition
 │   │   ├── prompts/
@@ -134,7 +130,6 @@ smart-farming-advisor/
 │   │       ├── RegisterPage.js  # Auth — sign up
 │   │       ├── Dashboard.js     # Home overview
 │   │       ├── ChatPage.js      # Full chat UI
-│   │       ├── WeatherPage.js   # Weather + charts
 │   │       ├── CropsPage.js     # Crop recommendation
 │   │       ├── SoilPage.js      # Soil analysis
 │   │       ├── PestPage.js      # Pest diagnosis + image
@@ -242,15 +237,7 @@ Frontend at **http://localhost:3000**
    WATSONX_PROJECT_ID=your_project_id_here
    ```
 
-### Step 4: Weather API Key (OpenWeatherMap)
-1. Go to [https://openweathermap.org/api](https://openweathermap.org/api)
-2. Sign up for the **free tier**
-3. Copy your API key to `backend/.env`:
-   ```env
-   WEATHER_API_KEY=your_weather_key_here
-   ```
-
-### Step 5: Market Price API (data.gov.in)
+### Step 4: Market Price API (data.gov.in)
 1. Go to [https://data.gov.in](https://data.gov.in)
 2. Register and get API key
 3. Add to `backend/.env`:
@@ -317,9 +304,6 @@ Interactive docs: `http://localhost:8000/api/docs`
 | `/auth/login` | POST | Login, returns JWT |
 | `/chat/` | POST | Send AI chat message (RAG) |
 | `/chat/sessions` | GET | List chat sessions |
-| `/weather/current` | GET | Current weather |
-| `/weather/forecast` | GET | 7-day forecast |
-| `/weather/advisory` | GET | Farming advisory |
 | `/crops/recommend` | POST | Crop recommendation |
 | `/soil/analyze` | POST | Soil analysis |
 | `/pests/diagnose` | POST | Pest diagnosis |
@@ -380,7 +364,7 @@ pytest tests/test_core.py::test_intent_detection -v
 
 - [ ] **Plant Disease Vision Model** — integrate CLIP/ResNet for crop image analysis
 - [ ] **Offline PWA Mode** — service worker caching for field use without internet
-- [ ] **Push Notifications** — weather alerts and pest outbreak warnings
+- [ ] **Push Notifications** — pest outbreak warnings and government scheme alerts
 - [ ] **PDF Report Generation** — downloadable farm advisory reports
 - [ ] **SMS/WhatsApp Bot** — Twilio integration for feature-phone farmers
 - [ ] **IoT Sensor Integration** — soil moisture, temperature sensors via MQTT
